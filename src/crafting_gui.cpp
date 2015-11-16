@@ -50,6 +50,9 @@ class list_circularizer {
         std::vector<T> vec;
 };
 
+std::vector<std::string> craft_cat_list;
+std::map<std::string, std::vector<std::string> > craft_subcat_list;
+
 class crafting_gui {
     public:
         crafting_gui()
@@ -137,13 +140,11 @@ class crafting_gui {
         void draw_border();
         void draw_recipe_line( int y, int i );
         void draw_recipe_list();
-        void draw_recipe_info();
+        void draw_recipe_info( const recipe* rec, bool available, int batch_size );
         void draw_main_window();
         void handle_input( int &batch_size );
 };
 
-std::vector<std::string> craft_cat_list;
-std::map<std::string, std::vector<std::string> > craft_subcat_list;
 std::map<std::string, std::string> translations;
 
 static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode = NORMAL);
@@ -309,15 +310,15 @@ void crafting_gui::draw_recipe_list()
     }
 }
 
-void crafting_gui::draw_recipe_info()
+void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batch_size )
 {
     if (!current.empty()) {
-        nc_color col = (available[line] ? c_white : c_ltgray);
+        nc_color col = (available ? c_white : c_ltgray);
         ypos = 0;
 
-        component_print_buffer = current[line]->requirements.get_folded_components_list(
-            FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, (batch) ? line + 1 : 1 );
-        if( !g->u.knows_recipe( current[line] ) ) {
+        component_print_buffer = rec->requirements.get_folded_components_list(
+            FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, batch_size );
+        if( !g->u.knows_recipe( rec ) ) {
             component_print_buffer.push_back(_("Recipe not memorized yet"));
         }
 
@@ -343,27 +344,27 @@ void crafting_gui::draw_recipe_info()
 
         if(display_mode == 0) {
             mvwprintz(w_data, ypos++, 30, col, _("Skills used: %s"),
-                      (!current[line]->skill_used ? _("N/A") :
-                       current[line]->skill_used.obj().name().c_str()));
+                      (!rec->skill_used ? _("N/A") :
+                       rec->skill_used.obj().name().c_str()));
 
             mvwprintz(w_data, ypos++, 30, col, _("Required skills: %s"),
-                      (current[line]->required_skills_string().c_str()));
-            mvwprintz(w_data, ypos++, 30, col, _("Difficulty: %d"), current[line]->difficulty);
-            if( !current[line]->skill_used ) {
+                      (rec->required_skills_string().c_str()));
+            mvwprintz(w_data, ypos++, 30, col, _("Difficulty: %d"), rec->difficulty);
+            if( !rec->skill_used ) {
                 mvwprintz(w_data, ypos++, 30, col, _("Your skill level: N/A"));
             } else {
                 mvwprintz(w_data, ypos++, 30, col, _("Your skill level: %d"),
                           // Macs don't seem to like passing this as a class, so force it to int
-                          (int)g->u.skillLevel(current[line]->skill_used));
+                          (int)g->u.skillLevel(rec->skill_used));
             }
-            ypos += current[line]->print_time( w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
-                                               (batch) ? line + 1 : 1 );
-            ypos += current[line]->print_items(w_data, ypos, 30, col, (batch) ? line + 1 : 1);
+            ypos += rec->print_time( w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
+                                               batch_size );
+            ypos += rec->print_items(w_data, ypos, 30, col, batch_size);
         }
         if(display_mode == 0 || display_mode == 1) {
-            ypos += current[line]->requirements.print_tools(
+            ypos += rec->requirements.print_tools(
                 w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
-                crafting_inv, (batch) ? line + 1 : 1 );
+                crafting_inv, batch_size );
         }
 
         //color needs to be preserved in case part of the previous page was cut off
@@ -391,9 +392,9 @@ void crafting_gui::draw_recipe_info()
         }
 
         if ( isWide ) {
-            if ( lastid != current[line]->id ) {
-                lastid = current[line]->id;
-                tmp = current[line]->create_result();
+            if ( lastid != rec->id ) {
+                lastid = rec->id;
+                tmp = rec->create_result();
                 item_info_text = tmp.info( true );
             }
             mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
@@ -408,7 +409,7 @@ void crafting_gui::draw_recipe_info()
 void crafting_gui::draw_main_window()
 {
     draw_recipe_list();
-    draw_recipe_info();
+    draw_recipe_info( current[line], available[line], batch ? line + 1 : 1);
     draw_scrollbar(w_data, line, dataLines, current.size(), 0);
 
     wrefresh(w_data);
