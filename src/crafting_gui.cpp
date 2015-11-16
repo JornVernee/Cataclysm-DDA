@@ -20,15 +20,6 @@ enum TAB_MODE {
     BATCH
 };
 
-struct tab_tuple {
-    std::string name;
-    std::string cc;
-    std::vector<std::pair<const std::string, const std::string>> subtabs;
-    tab_tuple(std::string name, std::string cc,
-              const std::initializer_list<std::pair<const std::string, const std::string>> &subtabs)
-              : name(name), cc(cc), subtabs(subtabs) {}
-};
-
 template<typename T>
 class list_circularizer {
     public:
@@ -57,6 +48,98 @@ class list_circularizer {
     private:
         unsigned int index = 0;
         std::vector<T> vec;
+};
+
+class crafting_gui {
+    public:
+        crafting_gui()
+        {
+            w_head = newwin(headHeight, width, 0, wStart);
+            w_subhead = newwin(subHeadHeight, width, 3, wStart);
+            w_data = newwin(dataHeight, width, headHeight + subHeadHeight, wStart);
+
+            ctxt = input_context("CRAFTING");
+            ctxt.register_cardinal();
+            ctxt.register_action("QUIT");
+            ctxt.register_action("CONFIRM");
+            ctxt.register_action("CYCLE_MODE");
+            ctxt.register_action("PREV_TAB");
+            ctxt.register_action("NEXT_TAB");
+            ctxt.register_action("FILTER");
+            ctxt.register_action("RESET_FILTER");
+            ctxt.register_action("HELP_RECIPE");
+            ctxt.register_action("HELP_KEYBINDINGS");
+            ctxt.register_action("CYCLE_BATCH");
+        }
+
+        void dispose()
+        {
+            werase(w_head);
+            werase(w_subhead);
+            werase(w_data);
+            delwin(w_head);
+            delwin(w_subhead);
+            delwin(w_data);
+        }
+
+        const recipe *query( int &batch_size );
+
+    private:
+        const int headHeight = 3;
+        const int subHeadHeight = 2;
+        const int freeWidth = TERMX - FULL_SCREEN_WIDTH;
+        bool isWide = ( TERMX > FULL_SCREEN_WIDTH && freeWidth > 15 );
+
+        const int width = isWide ? ( freeWidth > FULL_SCREEN_WIDTH ? FULL_SCREEN_WIDTH * 2 : TERMX ) :
+                          FULL_SCREEN_WIDTH;
+        const int wStart = ( TERMX - width ) / 2;
+        const int tailHeight = isWide ? 3 : 4;
+        const int dataLines = TERMY - (headHeight + subHeadHeight) - tailHeight;
+        const int dataHalfLines = dataLines / 2;
+        const int dataHeight = TERMY - (headHeight + subHeadHeight);
+
+        const int iInfoWidth = width - FULL_SCREEN_WIDTH - 3;
+        const int componentPrintHeight = dataHeight - tailHeight - 1;
+
+        WINDOW *w_head; // Used by draw_recipe_tabs
+        WINDOW *w_subhead; // Used by draw_recipe_subtabs
+        WINDOW *w_data;
+
+        int lastid = -1;
+        std::string item_info_text;
+        list_circularizer<std::string> tab = list_circularizer<std::string>( craft_cat_list );
+        list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
+        std::vector<const recipe *> current;
+        std::vector<bool> available;
+        std::vector<std::string> component_print_buffer;
+
+        //preserves component color printout between mode rotations
+        nc_color rotated_color = c_white;
+        int previous_item_line = -1;
+        std::string previous_tab = "";
+        std::string previous_subtab = "";
+        item tmp;
+        int line = 0, ypos;
+        bool redraw = true;
+        bool keepline = false;
+        bool done = false;
+        bool batch = false;
+        int batch_line = 0;
+        int display_mode = 0;
+        const recipe *chosen = NULL;
+        input_context ctxt;
+
+        const inventory &crafting_inv = g->u.crafting_inventory();
+        std::string filterstring = "";
+
+        void draw_tabs();
+        void draw_legend();
+        void draw_border();
+        void draw_recipe_line( int y, int i );
+        void draw_recipe_list();
+        void draw_recipe_info();
+        void draw_main_window();
+        void handle_input( int &batch_size );
 };
 
 std::vector<std::string> craft_cat_list;
@@ -123,98 +206,6 @@ void reset_recipe_categories()
     craft_cat_list.clear();
     craft_subcat_list.clear();
 }
-
-class crafting_gui {
-    public:
-        crafting_gui()
-        {
-            w_head = newwin(headHeight, width, 0, wStart);
-            w_subhead = newwin(subHeadHeight, width, 3, wStart);
-            w_data = newwin(dataHeight, width, headHeight + subHeadHeight, wStart);
-
-            ctxt = input_context("CRAFTING");
-            ctxt.register_cardinal();
-            ctxt.register_action("QUIT");
-            ctxt.register_action("CONFIRM");
-            ctxt.register_action("CYCLE_MODE");
-            ctxt.register_action("PREV_TAB");
-            ctxt.register_action("NEXT_TAB");
-            ctxt.register_action("FILTER");
-            ctxt.register_action("RESET_FILTER");
-            ctxt.register_action("HELP_RECIPE");
-            ctxt.register_action("HELP_KEYBINDINGS");
-            ctxt.register_action("CYCLE_BATCH");
-        }
-
-        void dispose()
-        {
-            werase(w_head);
-            werase(w_subhead);
-            werase(w_data);
-            delwin(w_head);
-            delwin(w_subhead);
-            delwin(w_data);
-        }
-
-        const recipe *query( int &batch_size );
-
-    private:
-        const int headHeight = 3;
-        const int subHeadHeight = 2;
-        const int freeWidth = TERMX - FULL_SCREEN_WIDTH;
-        bool isWide = ( TERMX > FULL_SCREEN_WIDTH && freeWidth > 15 );
-
-        const int width = isWide ? ( freeWidth > FULL_SCREEN_WIDTH ? FULL_SCREEN_WIDTH * 2 : TERMX ) :
-                          FULL_SCREEN_WIDTH;
-        const int wStart = ( TERMX - width ) / 2;
-        const int tailHeight = isWide ? 3 : 4;
-        const int dataLines = TERMY - (headHeight + subHeadHeight) - tailHeight;
-        const int dataHalfLines = dataLines / 2;
-        const int dataHeight = TERMY - (headHeight + subHeadHeight);
-
-        const int iInfoWidth = width - FULL_SCREEN_WIDTH - 3;
-        const int componentPrintHeight = dataHeight - tailHeight - 1;
-
-        WINDOW *w_head;
-        WINDOW *w_subhead;
-        WINDOW *w_data;
-
-        int lastid = -1;
-        std::string item_info_text;
-        list_circularizer<std::string> tab = list_circularizer<std::string>( craft_cat_list );
-        list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
-        std::vector<const recipe *> current;
-        std::vector<bool> available;
-        std::vector<std::string> component_print_buffer;
-
-        //preserves component color printout between mode rotations
-        nc_color rotated_color = c_white;
-        int previous_item_line = -1;
-        std::string previous_tab = "";
-        std::string previous_subtab = "";
-        item tmp;
-        int line = 0, ypos;
-        bool redraw = true;
-        bool keepline = false;
-        bool done = false;
-        bool batch = false;
-        int batch_line = 0;
-        int display_mode = 0;
-        const recipe *chosen = NULL;
-        input_context ctxt;
-
-        const inventory &crafting_inv = g->u.crafting_inventory();
-        std::string filterstring = "";
-
-        void draw_tabs();
-        void draw_legend();
-        void draw_border();
-        void draw_recipe_line( int y, int i );
-        void draw_recipe_list();
-        void draw_recipe_info();
-        void draw_main_window();
-        void handle_input( int &batch_size );
-};
 
 void crafting_gui::draw_tabs()
 {
