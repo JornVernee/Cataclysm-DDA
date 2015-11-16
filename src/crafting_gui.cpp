@@ -205,7 +205,333 @@ class crafting_gui {
 
         const inventory &crafting_inv = g->u.crafting_inventory();
         std::string filterstring = "";
+
+        void draw_tabs();
+        void draw_legend();
+        void draw_border();
+        void draw_recipe_info();
+        void handle_input( int &batch_size );
 };
+
+void crafting_gui::draw_tabs()
+{
+    if ( ! keepline ) {
+        line = 0;
+    } else {
+        keepline = false;
+    }
+
+    if( display_mode > 2 ){
+        display_mode = 2;
+    }
+
+    TAB_MODE m = (batch) ? BATCH : (filterstring == "") ? NORMAL : FILTERED;
+    draw_recipe_tabs(w_head, tab, m);
+    draw_recipe_subtabs(w_subhead, tab, subtab, m);
+    current.clear();
+    available.clear();
+    if (batch) {
+        batch_recipes(crafting_inv, current, available, chosen);
+    } else {
+        // Set current to all recipes in the current tab; available are possible to make
+        pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
+    }
+}
+
+void crafting_gui::draw_legend()
+{
+    if ( isWide ) {
+        mvwprintz(w_data, dataLines + 1, 5, c_white,
+                  _("Press <ENTER> to attempt to craft object."));
+        wprintz(w_data, c_white, "  ");
+        if (filterstring != "") {
+            wprintz(w_data, c_white, _("[E]: Describe, [F]ind, [R]eset, [m]ode, %s [?] keybindings"), (batch) ? _("cancel [b]atch") : _("[b]atch"));
+        } else {
+            wprintz(w_data, c_white, _("[E]: Describe, [F]ind, [m]ode, %s [?] keybindings"), (batch) ? _("cancel [b]atch") : _("[b]atch"));
+        }
+    } else {
+        if (filterstring != "") {
+            mvwprintz(w_data, dataLines + 1, 5, c_white,
+                      _("[E]: Describe, [F]ind, [R]eset, [m]ode, [b]atch [?] keybindings"));
+        } else {
+            mvwprintz(w_data, dataLines + 1, 5, c_white,
+                      _("[E]: Describe, [F]ind, [m]ode, [b]atch [?] keybindings"));
+        }
+        mvwprintz(w_data, dataLines + 2, 5, c_white,
+                  _("Press <ENTER> to attempt to craft object."));
+    }
+}
+
+void crafting_gui::draw_border()
+{
+    for (int i = 1; i < width - 1; ++i) { // _
+        mvwputch(w_data, dataHeight - 1, i, BORDER_COLOR, LINE_OXOX);
+    }
+    for (int i = 0; i < dataHeight - 1; ++i) { // |
+        mvwputch(w_data, i, 0, BORDER_COLOR, LINE_XOXO);
+        mvwputch(w_data, i, width - 1, BORDER_COLOR, LINE_XOXO);
+    }
+    mvwputch(w_data, dataHeight - 1,  0, BORDER_COLOR, LINE_XXOO); // _|
+    mvwputch(w_data, dataHeight - 1, width - 1, BORDER_COLOR, LINE_XOOX); // |_
+}
+
+void crafting_gui::draw_recipe_info()
+{
+    int recmin = 0, recmax = current.size();
+    if (recmax > dataLines) {
+        if (line <= recmin + dataHalfLines) {
+            for (int i = recmin; i < recmin + dataLines; ++i) {
+                std::string tmp_name = item::nname(current[i]->result);
+                if (batch) {
+                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
+                }
+                mvwprintz(w_data, i - recmin, 2, c_dkgray, ""); // Clear the line
+                if (i == line) {
+                    mvwprintz(w_data, i - recmin, 2, (available[i] ? h_white : h_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                } else {
+                    mvwprintz(w_data, i - recmin, 2, (available[i] ? c_white : c_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                }
+            }
+        } else if (line >= recmax - dataHalfLines) {
+            for (int i = recmax - dataLines; i < recmax; ++i) {
+                std::string tmp_name = item::nname(current[i]->result);
+                if (batch) {
+                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
+                }
+                mvwprintz(w_data, dataLines + i - recmax, 2, c_ltgray, ""); // Clear the line
+                if (i == line) {
+                    mvwprintz(w_data, dataLines + i - recmax, 2,
+                              (available[i] ? h_white : h_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                } else {
+                    mvwprintz(w_data, dataLines + i - recmax, 2,
+                              (available[i] ? c_white : c_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                }
+            }
+        } else {
+            for (int i = line - dataHalfLines; i < line - dataHalfLines + dataLines; ++i) {
+                std::string tmp_name = item::nname(current[i]->result);
+                if (batch) {
+                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
+                }
+                mvwprintz(w_data, dataHalfLines + i - line, 2, c_ltgray, ""); // Clear the line
+                if (i == line) {
+                    mvwprintz(w_data, dataHalfLines + i - line, 2,
+                              (available[i] ? h_white : h_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                } else {
+                    mvwprintz(w_data, dataHalfLines + i - line, 2,
+                              (available[i] ? c_white : c_dkgray),
+                              utf8_truncate(tmp_name, 28).c_str());
+                }
+            }
+        }
+    } else {
+        for (size_t i = 0; i < current.size() && i < (size_t)dataHeight + 1; ++i) {
+            std::string tmp_name = item::nname(current[i]->result);
+            if (batch) {
+                tmp_name = string_format(_("%2dx %s"), (int)i + 1, tmp_name.c_str());
+            }
+            if( (int)i == line ) {
+                mvwprintz(w_data, i, 2, (available[i] ? h_white : h_dkgray),
+                          utf8_truncate(tmp_name, 28).c_str());
+            } else {
+                mvwprintz(w_data, i, 2, (available[i] ? c_white : c_dkgray),
+                          utf8_truncate(tmp_name, 28).c_str());
+            }
+        }
+    }
+    if (!current.empty()) {
+        nc_color col = (available[line] ? c_white : c_ltgray);
+        ypos = 0;
+
+        component_print_buffer = current[line]->requirements.get_folded_components_list(
+            FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, (batch) ? line + 1 : 1 );
+        if( !g->u.knows_recipe( current[line] ) ) {
+            component_print_buffer.push_back(_("Recipe not memorized yet"));
+        }
+
+        //handle positioning of component list if it needed to be scrolled
+        int componentPrintOffset = 0;
+        if(display_mode > 2){
+            componentPrintOffset = (display_mode - 2) * componentPrintHeight;
+        }
+        if(component_print_buffer.size() < static_cast<size_t>( componentPrintOffset )){
+            componentPrintOffset = 0;
+            if( tab != previous_tab || subtab != previous_subtab || previous_item_line != line ){
+                display_mode = 2;
+            }else{
+                display_mode = 0;
+            }
+        }
+
+        //only used to preserve mode position on components when
+        //moving to another item and the view is already scrolled
+        previous_tab = tab;
+        previous_subtab = subtab;
+        previous_item_line = line;
+
+        if(display_mode == 0) {
+            mvwprintz(w_data, ypos++, 30, col, _("Skills used: %s"),
+                      (!current[line]->skill_used ? _("N/A") :
+                       current[line]->skill_used.obj().name().c_str()));
+
+            mvwprintz(w_data, ypos++, 30, col, _("Required skills: %s"),
+                      (current[line]->required_skills_string().c_str()));
+            mvwprintz(w_data, ypos++, 30, col, _("Difficulty: %d"), current[line]->difficulty);
+            if( !current[line]->skill_used ) {
+                mvwprintz(w_data, ypos++, 30, col, _("Your skill level: N/A"));
+            } else {
+                mvwprintz(w_data, ypos++, 30, col, _("Your skill level: %d"),
+                          // Macs don't seem to like passing this as a class, so force it to int
+                          (int)g->u.skillLevel(current[line]->skill_used));
+            }
+            ypos += current[line]->print_time( w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
+                                               (batch) ? line + 1 : 1 );
+            ypos += current[line]->print_items(w_data, ypos, 30, col, (batch) ? line + 1 : 1);
+        }
+        if(display_mode == 0 || display_mode == 1) {
+            ypos += current[line]->requirements.print_tools(
+                w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
+                crafting_inv, (batch) ? line + 1 : 1 );
+        }
+
+        //color needs to be preserved in case part of the previous page was cut off
+        nc_color stored_color = col;
+        if( display_mode > 2 ){
+            stored_color = rotated_color;
+        } else {
+            rotated_color = col;
+        }
+        int components_printed = 0;
+        for( size_t i = static_cast<size_t>( componentPrintOffset );
+             i < component_print_buffer.size(); i++ ) {
+            if( ypos >= componentPrintHeight ) {
+                break;
+            }
+
+            components_printed++;
+            print_colored_text(w_data, ypos++, 30, stored_color, col, component_print_buffer[i]);
+        }
+
+        if( ypos >= componentPrintHeight &&
+            component_print_buffer.size() > static_cast<size_t>( components_printed ) ) {
+            mvwprintz(w_data, ypos++, 30, col, _("v (more)"));
+            rotated_color = stored_color;
+        }
+
+        if ( isWide ) {
+            if ( lastid != current[line]->id ) {
+                lastid = current[line]->id;
+                tmp = current[line]->create_result();
+                item_info_text = tmp.info( true );
+            }
+            mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
+                      utf8_truncate(tmp.type_name( 1 ), iInfoWidth).c_str());
+
+            fold_and_print( w_data, 1, FULL_SCREEN_WIDTH + 1, iInfoWidth, col, item_info_text );
+        }
+
+    }
+
+    draw_scrollbar(w_data, line, dataLines, recmax, 0);
+    wrefresh(w_data);
+}
+
+void crafting_gui::handle_input( int &batch_size )
+{
+    const std::string action = ctxt.handle_input();
+    if (action == "CYCLE_MODE") {
+        display_mode = display_mode + 1;
+        if(display_mode <= 0) {
+            display_mode = 0;
+        }
+    } else if (action == "LEFT") {
+        subtab--;
+        redraw = true;
+    } else if (action == "PREV_TAB") {
+        tab--;
+        subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
+        redraw = true;
+    } else if (action == "RIGHT") {
+        subtab++;
+        redraw = true;
+    } else if (action == "NEXT_TAB") {
+        tab++;
+        subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
+        redraw = true;
+    } else if (action == "DOWN") {
+        line++;
+    } else if (action == "UP") {
+        line--;
+    } else if (action == "CONFIRM") {
+        if (available.empty() || !available[line]) {
+            popup(_("You can't do that!"));
+        } else if (!current[line]->check_eligible_containers_for_crafting((batch) ? line + 1 : 1)) {
+            ; // popup is already inside check
+        } else {
+            chosen = current[line];
+            batch_size = (batch) ? line + 1 : 1;
+            done = true;
+        }
+    } else if (action == "HELP_RECIPE") {
+        if (current.empty()) {
+            popup(_("Nothing selected!"));
+            redraw = true;
+        }
+        tmp = current[line]->create_result();
+
+        full_screen_popup("%s\n%s", tmp.type_name( 1 ).c_str(),  tmp.info(true).c_str());
+        redraw = true;
+        keepline = true;
+    } else if (action == "FILTER") {
+        filterstring = string_input_popup(_("Search:"), 85, filterstring,
+                                          _("Special prefixes for requirements:\n"
+                                            "  [t] search tools\n"
+                                            "  [c] search components\n"
+                                            "  [q] search qualities\n"
+                                            "  [s] search skills\n"
+                                            "  [S] search skill used only\n"
+                                            "Special prefixes for results:\n"
+                                            "  [Q] search qualities\n"
+                                            "Examples:\n"
+                                            "  t:soldering iron\n"
+                                            "  c:two by four\n"
+                                            "  q:metal sawing\n"
+                                            "  s:cooking\n"
+                                            "  Q:fine bolt turning"
+                                            ));
+        redraw = true;
+    } else if (action == "QUIT") {
+        chosen = nullptr;
+        done = true;
+    } else if (action == "RESET_FILTER") {
+        filterstring = "";
+        redraw = true;
+    } else if (action == "CYCLE_BATCH") {
+        if (current.empty()) {
+            popup(_("Nothing selected!"));
+            redraw = true;
+        }
+        batch = !batch;
+        if (batch) {
+            batch_line = line;
+            chosen = current[batch_line];
+        } else {
+            line = batch_line;
+            keepline = true;
+        }
+        redraw = true;
+    }
+    if (line < 0) {
+        line = current.size() - 1;
+    } else if (line >= (int)current.size()) {
+        line = 0;
+    }
+}
 
 const recipe *crafting_gui::query( int &batch_size )
 {
@@ -213,316 +539,17 @@ const recipe *crafting_gui::query( int &batch_size )
         if (redraw) {
             // When we switch tabs, redraw the header
             redraw = false;
-            if ( ! keepline ) {
-                line = 0;
-            } else {
-                keepline = false;
-            }
-
-            if( display_mode > 2 ){
-                display_mode = 2;
-            }
-
-            TAB_MODE m = (batch) ? BATCH : (filterstring == "") ? NORMAL : FILTERED;
-            draw_recipe_tabs(w_head, tab, m);
-            draw_recipe_subtabs(w_subhead, tab, subtab, m);
-            current.clear();
-            available.clear();
-            if (batch) {
-                batch_recipes(crafting_inv, current, available, chosen);
-            } else {
-                // Set current to all recipes in the current tab; available are possible to make
-                pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
-            }
+            draw_tabs();
         }
 
         // Clear the screen of recipe data, and draw it anew
         werase(w_data);
 
-        if ( isWide ) {
-            mvwprintz(w_data, dataLines + 1, 5, c_white,
-                      _("Press <ENTER> to attempt to craft object."));
-            wprintz(w_data, c_white, "  ");
-            if (filterstring != "") {
-                wprintz(w_data, c_white, _("[E]: Describe, [F]ind, [R]eset, [m]ode, %s [?] keybindings"), (batch) ? _("cancel [b]atch") : _("[b]atch"));
-            } else {
-                wprintz(w_data, c_white, _("[E]: Describe, [F]ind, [m]ode, %s [?] keybindings"), (batch) ? _("cancel [b]atch") : _("[b]atch"));
-            }
-        } else {
-            if (filterstring != "") {
-                mvwprintz(w_data, dataLines + 1, 5, c_white,
-                          _("[E]: Describe, [F]ind, [R]eset, [m]ode, [b]atch [?] keybindings"));
-            } else {
-                mvwprintz(w_data, dataLines + 1, 5, c_white,
-                          _("[E]: Describe, [F]ind, [m]ode, [b]atch [?] keybindings"));
-            }
-            mvwprintz(w_data, dataLines + 2, 5, c_white,
-                      _("Press <ENTER> to attempt to craft object."));
-        }
-        // Draw borders
-        for (int i = 1; i < width - 1; ++i) { // _
-            mvwputch(w_data, dataHeight - 1, i, BORDER_COLOR, LINE_OXOX);
-        }
-        for (int i = 0; i < dataHeight - 1; ++i) { // |
-            mvwputch(w_data, i, 0, BORDER_COLOR, LINE_XOXO);
-            mvwputch(w_data, i, width - 1, BORDER_COLOR, LINE_XOXO);
-        }
-        mvwputch(w_data, dataHeight - 1,  0, BORDER_COLOR, LINE_XXOO); // _|
-        mvwputch(w_data, dataHeight - 1, width - 1, BORDER_COLOR, LINE_XOOX); // |_
+        draw_legend();
+        draw_border();
+        draw_recipe_info();
 
-        int recmin = 0, recmax = current.size();
-        if (recmax > dataLines) {
-            if (line <= recmin + dataHalfLines) {
-                for (int i = recmin; i < recmin + dataLines; ++i) {
-                    std::string tmp_name = item::nname(current[i]->result);
-                    if (batch) {
-                        tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                    }
-                    mvwprintz(w_data, i - recmin, 2, c_dkgray, ""); // Clear the line
-                    if (i == line) {
-                        mvwprintz(w_data, i - recmin, 2, (available[i] ? h_white : h_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    } else {
-                        mvwprintz(w_data, i - recmin, 2, (available[i] ? c_white : c_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    }
-                }
-            } else if (line >= recmax - dataHalfLines) {
-                for (int i = recmax - dataLines; i < recmax; ++i) {
-                    std::string tmp_name = item::nname(current[i]->result);
-                    if (batch) {
-                        tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                    }
-                    mvwprintz(w_data, dataLines + i - recmax, 2, c_ltgray, ""); // Clear the line
-                    if (i == line) {
-                        mvwprintz(w_data, dataLines + i - recmax, 2,
-                                  (available[i] ? h_white : h_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    } else {
-                        mvwprintz(w_data, dataLines + i - recmax, 2,
-                                  (available[i] ? c_white : c_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    }
-                }
-            } else {
-                for (int i = line - dataHalfLines; i < line - dataHalfLines + dataLines; ++i) {
-                    std::string tmp_name = item::nname(current[i]->result);
-                    if (batch) {
-                        tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                    }
-                    mvwprintz(w_data, dataHalfLines + i - line, 2, c_ltgray, ""); // Clear the line
-                    if (i == line) {
-                        mvwprintz(w_data, dataHalfLines + i - line, 2,
-                                  (available[i] ? h_white : h_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    } else {
-                        mvwprintz(w_data, dataHalfLines + i - line, 2,
-                                  (available[i] ? c_white : c_dkgray),
-                                  utf8_truncate(tmp_name, 28).c_str());
-                    }
-                }
-            }
-        } else {
-            for (size_t i = 0; i < current.size() && i < (size_t)dataHeight + 1; ++i) {
-                std::string tmp_name = item::nname(current[i]->result);
-                if (batch) {
-                    tmp_name = string_format(_("%2dx %s"), (int)i + 1, tmp_name.c_str());
-                }
-                if( (int)i == line ) {
-                    mvwprintz(w_data, i, 2, (available[i] ? h_white : h_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                } else {
-                    mvwprintz(w_data, i, 2, (available[i] ? c_white : c_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                }
-            }
-        }
-        if (!current.empty()) {
-            nc_color col = (available[line] ? c_white : c_ltgray);
-            ypos = 0;
-
-            component_print_buffer = current[line]->requirements.get_folded_components_list(
-                FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, (batch) ? line + 1 : 1 );
-            if( !g->u.knows_recipe( current[line] ) ) {
-                component_print_buffer.push_back(_("Recipe not memorized yet"));
-            }
-
-            //handle positioning of component list if it needed to be scrolled
-            int componentPrintOffset = 0;
-            if(display_mode > 2){
-                componentPrintOffset = (display_mode - 2) * componentPrintHeight;
-            }
-            if(component_print_buffer.size() < static_cast<size_t>( componentPrintOffset )){
-                componentPrintOffset = 0;
-                if( tab != previous_tab || subtab != previous_subtab || previous_item_line != line ){
-                    display_mode = 2;
-                }else{
-                    display_mode = 0;
-                }
-            }
-
-            //only used to preserve mode position on components when
-            //moving to another item and the view is already scrolled
-            previous_tab = tab;
-            previous_subtab = subtab;
-            previous_item_line = line;
-
-            if(display_mode == 0) {
-                mvwprintz(w_data, ypos++, 30, col, _("Skills used: %s"),
-                          (!current[line]->skill_used ? _("N/A") :
-                           current[line]->skill_used.obj().name().c_str()));
-
-                mvwprintz(w_data, ypos++, 30, col, _("Required skills: %s"),
-                          (current[line]->required_skills_string().c_str()));
-                mvwprintz(w_data, ypos++, 30, col, _("Difficulty: %d"), current[line]->difficulty);
-                if( !current[line]->skill_used ) {
-                    mvwprintz(w_data, ypos++, 30, col, _("Your skill level: N/A"));
-                } else {
-                    mvwprintz(w_data, ypos++, 30, col, _("Your skill level: %d"),
-                              // Macs don't seem to like passing this as a class, so force it to int
-                              (int)g->u.skillLevel(current[line]->skill_used));
-                }
-                ypos += current[line]->print_time( w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
-                                                   (batch) ? line + 1 : 1 );
-                ypos += current[line]->print_items(w_data, ypos, 30, col, (batch) ? line + 1 : 1);
-            }
-            if(display_mode == 0 || display_mode == 1) {
-                ypos += current[line]->requirements.print_tools(
-                    w_data, ypos, 30, FULL_SCREEN_WIDTH - 30 - 1, col,
-                    crafting_inv, (batch) ? line + 1 : 1 );
-            }
-
-            //color needs to be preserved in case part of the previous page was cut off
-            nc_color stored_color = col;
-            if( display_mode > 2 ){
-                stored_color = rotated_color;
-            } else {
-                rotated_color = col;
-            }
-            int components_printed = 0;
-            for( size_t i = static_cast<size_t>( componentPrintOffset );
-                 i < component_print_buffer.size(); i++ ) {
-                if( ypos >= componentPrintHeight ) {
-                    break;
-                }
-
-                components_printed++;
-                print_colored_text(w_data, ypos++, 30, stored_color, col, component_print_buffer[i]);
-            }
-
-            if( ypos >= componentPrintHeight &&
-                component_print_buffer.size() > static_cast<size_t>( components_printed ) ) {
-                mvwprintz(w_data, ypos++, 30, col, _("v (more)"));
-                rotated_color = stored_color;
-            }
-
-            if ( isWide ) {
-                if ( lastid != current[line]->id ) {
-                    lastid = current[line]->id;
-                    tmp = current[line]->create_result();
-                    item_info_text = tmp.info( true );
-                }
-                mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
-                          utf8_truncate(tmp.type_name( 1 ), iInfoWidth).c_str());
-
-                fold_and_print( w_data, 1, FULL_SCREEN_WIDTH + 1, iInfoWidth, col, item_info_text );
-            }
-
-        }
-
-        draw_scrollbar(w_data, line, dataLines, recmax, 0);
-        wrefresh(w_data);
-
-        const std::string action = ctxt.handle_input();
-        if (action == "CYCLE_MODE") {
-            display_mode = display_mode + 1;
-            if(display_mode <= 0) {
-                display_mode = 0;
-            }
-        } else if (action == "LEFT") {
-            subtab--;
-            redraw = true;
-        } else if (action == "PREV_TAB") {
-            tab--;
-            subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
-            redraw = true;
-        } else if (action == "RIGHT") {
-            subtab++;
-            redraw = true;
-        } else if (action == "NEXT_TAB") {
-            tab++;
-            subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
-            redraw = true;
-        } else if (action == "DOWN") {
-            line++;
-        } else if (action == "UP") {
-            line--;
-        } else if (action == "CONFIRM") {
-            if (available.empty() || !available[line]) {
-                popup(_("You can't do that!"));
-            } else if (!current[line]->check_eligible_containers_for_crafting((batch) ? line + 1 : 1)) {
-                ; // popup is already inside check
-            } else {
-                chosen = current[line];
-                batch_size = (batch) ? line + 1 : 1;
-                done = true;
-            }
-        } else if (action == "HELP_RECIPE") {
-            if (current.empty()) {
-                popup(_("Nothing selected!"));
-                redraw = true;
-                continue;
-            }
-            tmp = current[line]->create_result();
-
-            full_screen_popup("%s\n%s", tmp.type_name( 1 ).c_str(),  tmp.info(true).c_str());
-            redraw = true;
-            keepline = true;
-        } else if (action == "FILTER") {
-            filterstring = string_input_popup(_("Search:"), 85, filterstring,
-                                              _("Special prefixes for requirements:\n"
-                                                "  [t] search tools\n"
-                                                "  [c] search components\n"
-                                                "  [q] search qualities\n"
-                                                "  [s] search skills\n"
-                                                "  [S] search skill used only\n"
-                                                "Special prefixes for results:\n"
-                                                "  [Q] search qualities\n"
-                                                "Examples:\n"
-                                                "  t:soldering iron\n"
-                                                "  c:two by four\n"
-                                                "  q:metal sawing\n"
-                                                "  s:cooking\n"
-                                                "  Q:fine bolt turning"
-                                                ));
-            redraw = true;
-        } else if (action == "QUIT") {
-            chosen = nullptr;
-            done = true;
-        } else if (action == "RESET_FILTER") {
-            filterstring = "";
-            redraw = true;
-        } else if (action == "CYCLE_BATCH") {
-            if (current.empty()) {
-                popup(_("Nothing selected!"));
-                redraw = true;
-                continue;
-            }
-            batch = !batch;
-            if (batch) {
-                batch_line = line;
-                chosen = current[batch_line];
-            } else {
-                line = batch_line;
-                keepline = true;
-            }
-            redraw = true;
-        }
-        if (line < 0) {
-            line = current.size() - 1;
-        } else if (line >= (int)current.size()) {
-            line = 0;
-        }
+        handle_input( batch_size );
     } while (!done);
 
     return chosen;
