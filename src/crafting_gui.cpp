@@ -111,10 +111,8 @@ class crafting_gui {
         list_circularizer<std::string> tab = list_circularizer<std::string>( craft_cat_list );
         list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
 
-        /* recipe list related */
-        bool batch = false;
         int line = 0;
-        int batch_line = 0; // line in batch mode, not really used
+        int batch_line = 0; // line in batch mode
         std::vector<const recipe *> current;
         std::vector<bool> available;
 
@@ -122,7 +120,9 @@ class crafting_gui {
         nc_color rotated_color = c_white;
 
         bool redraw = true;
+        bool keepline = false;
         bool done = false;
+        bool batch = false;
 
         int display_mode = 0;
 
@@ -132,7 +132,6 @@ class crafting_gui {
         const inventory &crafting_inv = g->u.crafting_inventory();
         std::string filterstring = "";
 
-        void reset_recipe_list();
         void draw_tabs();
         void draw_legend();
         void draw_border();
@@ -173,8 +172,7 @@ std::string get_subcat_name( const std::string &cat, std::string prefixed_name )
     return prefixed_name;
 }
 
-void translate_all()
-{
+void translate_all() {
     for( const auto &cat : craft_cat_list ) {
         translations[cat] =  _( get_cat_name( cat ).c_str() );
 
@@ -207,20 +205,14 @@ void reset_recipe_categories()
     craft_subcat_list.clear();
 }
 
-void crafting_gui::reset_recipe_list()
-{
-    current.clear();
-    available.clear();
-    if (batch) {
-        batch_recipes(crafting_inv, current, available, chosen);
-    } else {
-        // Set current to all recipes in the current tab; available are possible to make
-        pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
-    }
-}
-
 void crafting_gui::draw_tabs()
 {
+    if ( ! keepline ) {
+        line = 0;
+    } else {
+        keepline = false;
+    }
+
     if( display_mode > 2 ){
         display_mode = 2;
     }
@@ -229,6 +221,15 @@ void crafting_gui::draw_tabs()
     draw_recipe_tabs(w_head, tab, m);
     draw_recipe_subtabs(w_subhead, tab, subtab, m);
 
+    // Reset recipe list
+    current.clear();
+    available.clear();
+    if (batch) {
+        batch_recipes(crafting_inv, current, available, chosen);
+    } else {
+        // Set current to all recipes in the current tab; available are possible to make
+        pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
+    }
 }
 
 void crafting_gui::draw_legend()
@@ -423,8 +424,6 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
 
 void crafting_gui::handle_input( int &batch_size )
 {
-    bool keepline = false;
-
     const std::string action = ctxt.handle_input();
     if (action == "CYCLE_MODE") {
         display_mode = display_mode + 1;
@@ -508,13 +507,6 @@ void crafting_gui::handle_input( int &batch_size )
         }
         redraw = true;
     }
-
-    if ( ! keepline ) {
-        line = 0;
-    } else {
-        keepline = false;
-    }
-
     if (line < 0) {
         line = current.size() - 1;
     } else if (line >= (int)current.size()) {
