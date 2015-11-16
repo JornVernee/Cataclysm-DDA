@@ -34,17 +34,17 @@ class list_circularizer {
     public:
         list_circularizer( const std::vector<T> &vec ) : vec(vec) {}
 
-        inline void operator++(int)
+        void operator++(int)
         {
             index == vec.size() - 1 ? index = 0 : index++;
         }
 
-        inline void operator--(int)
+        void operator--(int)
         {
             index == 0 ? index = vec.size() - 1 : index--;
         }
 
-        inline operator T() const
+        operator T() const
         {
             return vec[index];
         }
