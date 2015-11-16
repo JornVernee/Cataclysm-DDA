@@ -9,6 +9,8 @@
 #include "translations.h"
 #include "catacharset.h"
 
+#include "debug.h"
+
 #include <algorithm>
 #include <utility> // for pair
 
@@ -120,30 +122,24 @@ static std::string first_craft_cat()
 
 static std::string next_craft_cat(const std::string cat)
 {
-    for (std::vector<std::string>::iterator iter = craft_cat_list.begin();
-         iter != craft_cat_list.end(); ++iter) {
-        if ((*iter) == cat) {
-            if( ++iter == craft_cat_list.end() ) {
-                return craft_cat_list.front();
-            }
-            return *iter;
+
+    for (unsigned int i = 0; i < craft_cat_list.size() - 1; i++) {
+        debugmsg(craft_cat_list[i].c_str());
+        if(craft_cat_list[i] == cat) {
+            return craft_cat_list[i];
         }
     }
-    return NULL;
+    return craft_cat_list.front();
 }
 
 static std::string prev_craft_cat(const std::string cat)
 {
-    for (std::vector<std::string>::iterator iter = craft_cat_list.begin();
-         iter != craft_cat_list.end(); ++iter) {
-        if ((*iter) == cat) {
-            if( iter == craft_cat_list.begin() ) {
-                return craft_cat_list.back();
-            }
-            return *(--iter);
+    for (unsigned int i = craft_cat_list.size() - 1; i > 0; i--) {
+        if(craft_cat_list[i] == cat) {
+            return craft_cat_list[--i];
         }
     }
-    return NULL;
+    return craft_cat_list.back();
 }
 
 static std::string first_craft_subcat(const std::string cat)
@@ -158,30 +154,26 @@ static std::string last_craft_subcat(const std::string cat)
 
 static std::string next_craft_subcat(const std::string cat, const std::string subcat)
 {
-    for (std::vector<std::string>::iterator iter = craft_subcat_list[cat].begin();
-         iter != craft_subcat_list[cat].end(); ++iter) {
-        if ((*iter) == subcat) {
-            if( ++iter == craft_subcat_list[cat].end() ) {
-                return craft_subcat_list[cat].front();
-            }
-            return *iter;
+    const std::vector<std::string> subcat_list = craft_subcat_list[cat];
+
+    for (unsigned int i = 0; i < subcat_list.size() -1; i++) {
+        if(subcat_list[i] == subcat) {
+            return subcat_list[++i];
         }
     }
-    return NULL;
+    return subcat_list.front();
 }
 
 static std::string prev_craft_subcat(const std::string cat, const std::string subcat)
 {
-    for (std::vector<std::string>::iterator iter = craft_subcat_list[cat].begin();
-         iter != craft_subcat_list[cat].end(); ++iter) {
-        if ((*iter) == subcat) {
-            if( iter == craft_subcat_list[cat].begin() ) {
-                return craft_subcat_list[cat].back();
-            }
-            return *(--iter);
+    const std::vector<std::string> subcat_list = craft_subcat_list[cat];
+
+    for (unsigned int i = subcat_list.size() - 1; i > 0; i--) {
+        if(subcat_list[i] == subcat) {
+            return subcat_list[--i];
         }
     }
-    return NULL;
+    return subcat_list.back();
 }
 
 const recipe *select_crafting_recipe( int &batch_size )
@@ -638,8 +630,8 @@ static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab, 
                     draw_subtab( w, pos_x, stt.first, subtab == stt.second );
                     pos_x += utf8_width( stt.first ) + tab_step;
                 }
+                break;
             }
-            break;
         }
         break;
     }
