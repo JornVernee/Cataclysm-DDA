@@ -18,6 +18,15 @@ enum TAB_MODE {
     BATCH
 };
 
+struct tab_tuple {
+    std::string name;
+    std::string cc;
+    std::vector<std::pair<const std::string, const std::string>> subtabs;
+    tab_tuple(std::string name, std::string cc,
+              const std::initializer_list<std::pair<const std::string, const std::string>> &subtabs)
+              : name(name), cc(cc), subtabs(subtabs) {}
+};
+
 static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode = NORMAL);
 static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab,
                                 TAB_MODE mode = NORMAL);
@@ -29,12 +38,8 @@ static std::string last_craft_subcat(const std::string cat);
 static std::string next_craft_subcat(const std::string cat, const std::string subcat);
 static std::string prev_craft_subcat(const std::string cat, const std::string subcat);
 
-static std::map<const std::string, // tab 'CC'
-                    std::pair<const std::string, // tab name
-                        std::vector<std::pair<const std::string, const std::string>> // vector of sub-tabs
-                    >
-                > tabs = {
-    {"CC_WEAPON", { _("WEAPONS"),
+static const tab_tuple tabs[] = {
+    tab_tuple(_("WEAPONS"), "CC_WEAPON",
         {
              {_("BASHING")   , "CSC_WEAPON_BASHING"},
              {_("CUTTING")   , "CSC_WEAPON_CUTTING"},
@@ -44,16 +49,16 @@ static std::map<const std::string, // tab 'CC'
              {_("MODS")      , "CSC_WEAPON_MODS"},
              {_("OTHER")     , "CSC_WEAPON_OTHER"}
         }
-    }},
-    {"CC_AMMO", { _("AMMO"),
+    ),
+    tab_tuple(_("AMMO"), "CC_AMMO",
         {
              {_("BULLETS")   , "CSC_AMMO_BULLETS"},
              {_("ARROWS")    , "CSC_AMMO_ARROWS"},
              {_("COMPONENTS"), "CSC_AMMO_COMPONENTS"},
              {_("OTHER")     , "CSC_AMMO_OTHER"}
         }
-    }},
-    {"CC_FOOD", { _("FOOD"),
+    ),
+    tab_tuple(_("FOOD"), "CC_FOOD",
         {
              {_("DRINKS")    , "CSC_FOOD_DRINKS"},
              {_("MEAT")      , "CSC_FOOD_MEAT"},
@@ -63,16 +68,16 @@ static std::map<const std::string, // tab 'CC'
              {_("PASTA")     , "CSC_FOOD_PASTA"},
              {_("OTHER")     , "CSC_FOOD_OTHER"}
         }
-    }},
-    {"CC_CHEM", { _("CHEMS"),
+    ),
+    tab_tuple(_("CHEMS"), "CC_CHEM",
         {
              {_("DRUGS")     , "CSC_CHEM_DRUGS"},
              {_("MUTAGEN")   , "CSC_CHEM_MUTAGEN"},
              {_("CHEMICALS") , "CSC_CHEM_CHEMICALS"},
              {_("OTHER")     , "CSC_CHEM_OTHER"}
         }
-    }},
-    {"CC_ELECTRONIC", { _("ELECTRICAL"),
+    ),
+    tab_tuple(_("ELECTRICAL"), "CC_ELECTRONIC",
         {
              {_("CBMS")      , "CSC_ELECTRONIC_CBMS"},
              {_("TOOLS")     , "CSC_ELECTRONIC_TOOLS"},
@@ -81,8 +86,8 @@ static std::map<const std::string, // tab 'CC'
              {_("COMPONENTS"), "CSC_ELECTRONIC_COMPONENTS"},
              {_("OTHER")     , "CSC_ELECTRONIC_OTHER"}
         }
-    }},
-    {"CC_ARMOR", { _("ARMOR"),
+    ),
+    tab_tuple(_("ARMOR"), "CC_ARMOR",
         {
              {_("STORAGE")   , "CSC_ARMOR_STORAGE"},
              {_("SUIT")      , "CSC_ARMOR_SUIT"},
@@ -94,8 +99,8 @@ static std::map<const std::string, // tab 'CC'
              {_("FEET")      , "CSC_ARMOR_FEET"},
              {_("OTHER")     , "CSC_ARMOR_OTHER"}
         }
-    }},
-    {"CC_OTHER", { _("OTHER"),
+    ),
+    tab_tuple(_("OTHER"), "CC_OTHER",
         {
              {_("TOOLS")     , "CSC_OTHER_TOOLS"},
              {_("MEDICAL")   , "CSC_OTHER_MEDICAL"},
@@ -105,7 +110,7 @@ static std::map<const std::string, // tab 'CC'
              {_("TRAPS")     , "CSC_OTHER_TRAPS"},
              {_("OTHER")     , "CSC_OTHER_OTHER"}
         }
-    }}
+    )
 };
 
 static std::string first_craft_cat()
@@ -584,9 +589,9 @@ static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode)
     {
         int pos_x = 2;//draw the tabs on each other
         int tab_step = 3;//step between tabs, two for tabs border
-        for( const auto kvp : tabs ) {
-            draw_tab( w, pos_x, kvp.second.first, tab == kvp.first );
-            pos_x += utf8_width( kvp.second.first ) + tab_step;
+        for( const auto tt : tabs ) {
+            draw_tab( w, pos_x, tt.name, tab == tt.cc );
+            pos_x += utf8_width( tt.name ) + tab_step;
         }
         break;
     }
@@ -627,9 +632,14 @@ static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab, 
         int tab_step = 3;//step between tabs, two for tabs border
         draw_subtab(w, pos_x, _("ALL"), subtab == "CSC_ALL");//Add ALL subcategory to all tabs;
         pos_x += utf8_width(_("ALL")) + tab_step;
-        for( const auto stt : tabs[tab].second ) {
-            draw_subtab( w, pos_x, stt.first, subtab == stt.second );
-            pos_x += utf8_width( stt.first ) + tab_step;
+        for( const auto tt : tabs ) {
+            if( tt.cc == tab ) {
+                for( const auto stt : tt.subtabs ) {
+                    draw_subtab( w, pos_x, stt.first, subtab == stt.second );
+                    pos_x += utf8_width( stt.first ) + tab_step;
+                }
+            }
+            break;
         }
         break;
     }
