@@ -108,27 +108,24 @@ class crafting_gui {
         WINDOW *w_subhead; // Used by draw_recipe_subtabs
         WINDOW *w_data;
 
-        int lastid = -1;
-        std::string item_info_text;
         list_circularizer<std::string> tab = list_circularizer<std::string>( craft_cat_list );
         list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
+
+        int line = 0;
+        int batch_line = 0; // line in batch mode
         std::vector<const recipe *> current;
         std::vector<bool> available;
-        std::vector<std::string> component_print_buffer;
 
         //preserves component color printout between mode rotations
         nc_color rotated_color = c_white;
-        int previous_item_line = -1;
-        std::string previous_tab = "";
-        std::string previous_subtab = "";
-        item tmp;
-        int line = 0, ypos;
+
         bool redraw = true;
         bool keepline = false;
         bool done = false;
         bool batch = false;
-        int batch_line = 0;
+
         int display_mode = 0;
+
         const recipe *chosen = NULL;
         input_context ctxt;
 
@@ -314,6 +311,10 @@ void crafting_gui::draw_recipe_list()
 
 void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
 {
+    static int lastid = -1;
+    static std::string item_info_text;
+    static item tmp;
+
     nc_color col = (available ? c_white : c_ltgray);
 
     if ( lastid != rec->id ) {
@@ -329,9 +330,14 @@ void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
 
 void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batch_size )
 {
+    static std::vector<std::string> component_print_buffer;
+    static int previous_item_line = -1;
+    static std::string previous_tab = "";
+    static std::string previous_subtab = "";
+
     if (!current.empty()) {
         nc_color col = (available ? c_white : c_ltgray);
-        ypos = 0;
+        int ypos = 0;
 
         component_print_buffer = rec->requirements.get_folded_components_list(
             FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, batch_size );
@@ -456,7 +462,7 @@ void crafting_gui::handle_input( int &batch_size )
             popup(_("Nothing selected!"));
             redraw = true;
         }
-        tmp = current[line]->create_result();
+        item tmp = current[line]->create_result();
 
         full_screen_popup("%s\n%s", tmp.type_name( 1 ).c_str(),  tmp.info(true).c_str());
         redraw = true;
