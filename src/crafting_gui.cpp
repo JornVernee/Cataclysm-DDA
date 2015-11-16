@@ -43,29 +43,6 @@ static std::string last_craft_subcat(const std::string cat);
 static std::string next_craft_subcat(const std::string cat, const std::string subcat);
 static std::string prev_craft_subcat(const std::string cat, const std::string subcat);
 
-void load_recipe_category(JsonObject &jsobj)
-{
-    JsonArray subcats;
-    std::string category = jsobj.get_string("id");
-    // Don't store noncraft as a category.
-    // We're storing the subcategory so we can look it up in load_recipes
-    // for the fallback subcategory.
-    if( category != "CC_NONCRAFT" ) {
-        craft_cat_list.push_back( category );
-    }
-    craft_subcat_list[category] = std::vector<std::string>();
-    subcats = jsobj.get_array("recipe_subcategories");
-    while (subcats.has_more()) {
-        craft_subcat_list[category].push_back( subcats.next_string() );
-    }
-}
-
-void reset_recipe_categories()
-{
-    craft_cat_list.clear();
-    craft_subcat_list.clear();
-}
-
 static const tab_tuple tabs[] = {
     tab_tuple(_("WEAPONS"), "CC_WEAPON",
         {
@@ -632,7 +609,7 @@ static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode)
         int tab_step = 3;//step between tabs, two for tabs border
         for( const auto tt : tabs ) {
             draw_tab( w, pos_x, tt.name, tab == tt.cc );
-            pos_x += utf8_width( tt.name ) + tab_step;
+            pos_x += utf8_width( _(tt.cc.c_str()) ) + tab_step;
         }
         break;
     }
