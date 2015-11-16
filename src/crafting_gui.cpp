@@ -60,85 +60,49 @@ class list_circularizer {
 
 std::vector<std::string> craft_cat_list;
 std::map<std::string, std::vector<std::string> > craft_subcat_list;
+std::map<std::string, std::string> translations;
 
 static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode = NORMAL);
 static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab,
                                 TAB_MODE mode = NORMAL);
 
-static const tab_tuple tabs[] = {
-    tab_tuple(_("WEAPONS"), "CC_WEAPON",
-        {
-             {_("BASHING")   , "CSC_WEAPON_BASHING"},
-             {_("CUTTING")   , "CSC_WEAPON_CUTTING"},
-             {_("PIERCING")  , "CSC_WEAPON_PIERCING"},
-             {_("RANGED")    , "CSC_WEAPON_RANGED"},
-             {_("EXPLOSIVE") , "CSC_WEAPON_EXPLOSIVE"},
-             {_("MODS")      , "CSC_WEAPON_MODS"},
-             {_("OTHER")     , "CSC_WEAPON_OTHER"}
+std::string get_cat_name( std::string prefixed_name )
+{
+    if( prefixed_name.find("CC_") == 0 ) {
+        return prefixed_name.substr( 3, prefixed_name.size() - 3 );
+    }
+
+    debugmsg( ( "could not get screen name of: " + prefixed_name ).c_str() );
+    return prefixed_name;
+}
+
+std::string get_subcat_name( const std::string &cat, std::string prefixed_name )
+{
+    std::string prefix = "CSC_" + get_cat_name( cat ) + "_";
+
+    if( prefixed_name.find( prefix ) == 0 ) {
+        return prefixed_name.substr( prefix.size(), prefixed_name.size() - prefix.size() );
+    } else if( prefixed_name.find("CSC_ALL") == 0 ) {
+        return "ALL";
+    }
+
+    debugmsg( ( "could not get screen name of: " + prefixed_name ).c_str() );
+    return prefixed_name;
+}
+
+void translate_all() {
+    if( !translations.empty() ) {
+        return; // already translated
+    }
+
+    for( const auto &cat : craft_cat_list ) {
+        translations[cat] =  _( get_cat_name( cat ).c_str() );
+
+        for( const auto &subcat : craft_subcat_list[cat] ) {
+            translations[subcat] = _( get_subcat_name( cat, subcat ).c_str() );
         }
-    ),
-    tab_tuple(_("AMMO"), "CC_AMMO",
-        {
-             {_("BULLETS")   , "CSC_AMMO_BULLETS"},
-             {_("ARROWS")    , "CSC_AMMO_ARROWS"},
-             {_("COMPONENTS"), "CSC_AMMO_COMPONENTS"},
-             {_("OTHER")     , "CSC_AMMO_OTHER"}
-        }
-    ),
-    tab_tuple(_("FOOD"), "CC_FOOD",
-        {
-             {_("DRINKS")    , "CSC_FOOD_DRINKS"},
-             {_("MEAT")      , "CSC_FOOD_MEAT"},
-             {_("VEGGI")     , "CSC_FOOD_VEGGI"},
-             {_("SNACK")     , "CSC_FOOD_SNACK"},
-             {_("BREAD")     , "CSC_FOOD_BREAD"},
-             {_("PASTA")     , "CSC_FOOD_PASTA"},
-             {_("OTHER")     , "CSC_FOOD_OTHER"}
-        }
-    ),
-    tab_tuple(_("CHEMS"), "CC_CHEM",
-        {
-             {_("DRUGS")     , "CSC_CHEM_DRUGS"},
-             {_("MUTAGEN")   , "CSC_CHEM_MUTAGEN"},
-             {_("CHEMICALS") , "CSC_CHEM_CHEMICALS"},
-             {_("OTHER")     , "CSC_CHEM_OTHER"}
-        }
-    ),
-    tab_tuple(_("ELECTRICAL"), "CC_ELECTRONIC",
-        {
-             {_("CBMS")      , "CSC_ELECTRONIC_CBMS"},
-             {_("TOOLS")     , "CSC_ELECTRONIC_TOOLS"},
-             {_("PARTS")     , "CSC_ELECTRONIC_PARTS"},
-             {_("LIGHTING")  , "CSC_ELECTRONIC_LIGHTING"},
-             {_("COMPONENTS"), "CSC_ELECTRONIC_COMPONENTS"},
-             {_("OTHER")     , "CSC_ELECTRONIC_OTHER"}
-        }
-    ),
-    tab_tuple(_("ARMOR"), "CC_ARMOR",
-        {
-             {_("STORAGE")   , "CSC_ARMOR_STORAGE"},
-             {_("SUIT")      , "CSC_ARMOR_SUIT"},
-             {_("HEAD")      , "CSC_ARMOR_HEAD"},
-             {_("TORSO")     , "CSC_ARMOR_TORSO"},
-             {_("ARMS")      , "CSC_ARMOR_ARMS"},
-             {_("HANDS")     , "CSC_ARMOR_HANDS"},
-             {_("LEGS")      , "CSC_ARMOR_LEGS"},
-             {_("FEET")      , "CSC_ARMOR_FEET"},
-             {_("OTHER")     , "CSC_ARMOR_OTHER"}
-        }
-    ),
-    tab_tuple(_("OTHER"), "CC_OTHER",
-        {
-             {_("TOOLS")     , "CSC_OTHER_TOOLS"},
-             {_("MEDICAL")   , "CSC_OTHER_MEDICAL"},
-             {_("CONTAINERS"), "CSC_OTHER_CONTAINERS"},
-             {_("MATERIALS") , "CSC_OTHER_MATERIALS"},
-             {_("PARTS")     , "CSC_OTHER_PARTS"},
-             {_("TRAPS")     , "CSC_OTHER_TRAPS"},
-             {_("OTHER")     , "CSC_OTHER_OTHER"}
-        }
-    )
-};
+    }
+}
 
 void load_recipe_category(JsonObject &jsobj)
 {
@@ -165,6 +129,8 @@ void reset_recipe_categories()
 
 const recipe *select_crafting_recipe( int &batch_size )
 {
+    translate_all();
+
     const int headHeight = 3;
     const int subHeadHeight = 2;
     const int freeWidth = TERMX - FULL_SCREEN_WIDTH;
@@ -568,9 +534,9 @@ static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode)
     {
         int pos_x = 2;//draw the tabs on each other
         int tab_step = 3;//step between tabs, two for tabs border
-        for( const auto tt : tabs ) {
-            draw_tab( w, pos_x, tt.name, tab == tt.cc );
-            pos_x += utf8_width( tt.cc.c_str() ) + tab_step;
+        for( const auto &tt : craft_cat_list ) {
+            draw_tab( w, pos_x, translations[tt], tab == tt );
+            pos_x += utf8_width( translations[tt] ) + tab_step;
         }
         break;
     }
@@ -609,16 +575,9 @@ static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab, 
     {
         int pos_x = 2;//draw the tabs on each other
         int tab_step = 3;//step between tabs, two for tabs border
-        draw_subtab(w, pos_x, _("ALL"), subtab == "CSC_ALL");//Add ALL subcategory to all tabs;
-        pos_x += utf8_width(_("ALL")) + tab_step;
-        for( const auto tt : tabs ) {
-            if( tt.cc == tab ) {
-                for( const auto stt : tt.subtabs ) {
-                    draw_subtab( w, pos_x, stt.first, subtab == stt.second );
-                    pos_x += utf8_width( stt.first ) + tab_step;
-                }
-                break;
-            }
+        for( const auto stt : craft_subcat_list[tab] ) {
+            draw_subtab( w, pos_x, translations[stt], subtab == stt );
+            pos_x += utf8_width( translations[stt] ) + tab_step;
         }
         break;
     }
