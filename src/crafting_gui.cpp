@@ -209,6 +209,7 @@ class crafting_gui {
         void draw_tabs();
         void draw_legend();
         void draw_border();
+        void draw_recipe_line( int y, int i );
         void draw_recipe_info();
         void handle_input( int &batch_size );
 };
@@ -275,73 +276,42 @@ void crafting_gui::draw_border()
     mvwputch(w_data, dataHeight - 1, width - 1, BORDER_COLOR, LINE_XOOX); // |_
 }
 
+void crafting_gui::draw_recipe_line( int y, int i )
+{
+    std::string name = item::nname(current[i]->result);
+    if (batch) {
+        name = string_format(_("%2dx %s"), i + 1, name.c_str());
+    }
+    mvwprintz(w_data, y, 2, c_dkgray, ""); // Clear the line
+    if (i == line) {
+        mvwprintz(w_data, y, 2, (available[i] ? h_white : h_dkgray),
+                  utf8_truncate(name, 28).c_str());
+    } else {
+        mvwprintz(w_data, y, 2, (available[i] ? c_white : c_dkgray),
+                  utf8_truncate(name, 28).c_str());
+    }
+}
+
 void crafting_gui::draw_recipe_info()
 {
     int recmin = 0, recmax = current.size();
     if (recmax > dataLines) {
         if (line <= recmin + dataHalfLines) {
             for (int i = recmin; i < recmin + dataLines; ++i) {
-                std::string tmp_name = item::nname(current[i]->result);
-                if (batch) {
-                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                }
-                mvwprintz(w_data, i - recmin, 2, c_dkgray, ""); // Clear the line
-                if (i == line) {
-                    mvwprintz(w_data, i - recmin, 2, (available[i] ? h_white : h_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                } else {
-                    mvwprintz(w_data, i - recmin, 2, (available[i] ? c_white : c_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                }
+                draw_recipe_line(i - recmin, i);
             }
         } else if (line >= recmax - dataHalfLines) {
             for (int i = recmax - dataLines; i < recmax; ++i) {
-                std::string tmp_name = item::nname(current[i]->result);
-                if (batch) {
-                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                }
-                mvwprintz(w_data, dataLines + i - recmax, 2, c_ltgray, ""); // Clear the line
-                if (i == line) {
-                    mvwprintz(w_data, dataLines + i - recmax, 2,
-                              (available[i] ? h_white : h_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                } else {
-                    mvwprintz(w_data, dataLines + i - recmax, 2,
-                              (available[i] ? c_white : c_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                }
+                draw_recipe_line(dataLines + i - recmax, i);
             }
         } else {
             for (int i = line - dataHalfLines; i < line - dataHalfLines + dataLines; ++i) {
-                std::string tmp_name = item::nname(current[i]->result);
-                if (batch) {
-                    tmp_name = string_format(_("%2dx %s"), i + 1, tmp_name.c_str());
-                }
-                mvwprintz(w_data, dataHalfLines + i - line, 2, c_ltgray, ""); // Clear the line
-                if (i == line) {
-                    mvwprintz(w_data, dataHalfLines + i - line, 2,
-                              (available[i] ? h_white : h_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                } else {
-                    mvwprintz(w_data, dataHalfLines + i - line, 2,
-                              (available[i] ? c_white : c_dkgray),
-                              utf8_truncate(tmp_name, 28).c_str());
-                }
+                draw_recipe_line(dataHalfLines + i - line, i);
             }
         }
     } else {
         for (size_t i = 0; i < current.size() && i < (size_t)dataHeight + 1; ++i) {
-            std::string tmp_name = item::nname(current[i]->result);
-            if (batch) {
-                tmp_name = string_format(_("%2dx %s"), (int)i + 1, tmp_name.c_str());
-            }
-            if( (int)i == line ) {
-                mvwprintz(w_data, i, 2, (available[i] ? h_white : h_dkgray),
-                          utf8_truncate(tmp_name, 28).c_str());
-            } else {
-                mvwprintz(w_data, i, 2, (available[i] ? c_white : c_dkgray),
-                          utf8_truncate(tmp_name, 28).c_str());
-            }
+            draw_recipe_line(i, i);
         }
     }
     if (!current.empty()) {
