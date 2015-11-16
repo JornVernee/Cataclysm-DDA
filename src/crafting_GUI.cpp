@@ -29,6 +29,9 @@ struct tab_tuple {
               : name(name), cc(cc), subtabs(subtabs) {}
 };
 
+std::vector<std::string> craft_cat_list;
+std::map<std::string, std::vector<std::string> > craft_subcat_list;
+
 static void draw_recipe_tabs(WINDOW *w, std::string tab, TAB_MODE mode = NORMAL);
 static void draw_recipe_subtabs(WINDOW *w, std::string tab, std::string subtab,
                                 TAB_MODE mode = NORMAL);
@@ -114,6 +117,29 @@ static const tab_tuple tabs[] = {
         }
     )
 };
+
+void load_recipe_category(JsonObject &jsobj)
+{
+    JsonArray subcats;
+    std::string category = jsobj.get_string("id");
+    // Don't store noncraft as a category.
+    // We're storing the subcategory so we can look it up in load_recipes
+    // for the fallback subcategory.
+    if( category != "CC_NONCRAFT" ) {
+        craft_cat_list.push_back( category );
+    }
+    craft_subcat_list[category] = std::vector<std::string>();
+    subcats = jsobj.get_array("recipe_subcategories");
+    while (subcats.has_more()) {
+        craft_subcat_list[category].push_back( subcats.next_string() );
+    }
+}
+
+void reset_recipe_categories()
+{
+    craft_cat_list.clear();
+    craft_subcat_list.clear();
+}
 
 static std::string first_craft_cat()
 {
