@@ -211,7 +211,7 @@ class crafting_gui {
         void draw_border();
         void draw_recipe_line( int y, int i );
         void draw_recipe_list();
-        void draw_recipe_info();
+        void draw_main_window();
         void handle_input( int &batch_size );
 };
 
@@ -317,7 +317,7 @@ void crafting_gui::draw_recipe_list()
     }
 }
 
-void crafting_gui::draw_recipe_info()
+void crafting_gui::draw_main_window()
 {
     draw_recipe_list();
 
@@ -524,7 +524,7 @@ const recipe *crafting_gui::query( int &batch_size )
 
         draw_legend();
         draw_border();
-        draw_recipe_info();
+        draw_main_window();
 
         handle_input( batch_size );
     } while (!done);
