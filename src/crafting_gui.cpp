@@ -30,26 +30,26 @@ struct tab_tuple {
 };
 
 template<typename T>
-class circular_iterator {
+class list_circularizer {
     public:
-        circular_iterator( const std::vector<T> &vec ) : vec(vec) {}
+        list_circularizer( const std::vector<T> &vec ) : vec(vec) {}
 
-        void operator++(int)
+        inline void operator++(int)
         {
             index == vec.size() - 1 ? index = 0 : index++;
         }
 
-        void operator--(int)
+        inline void operator--(int)
         {
             index == 0 ? index = vec.size() - 1 : index--;
         }
 
-        operator T() const
+        inline operator T() const
         {
             return vec[index];
         }
 
-        bool operator!=( const T &other ) const
+        inline bool operator!=( const T &other ) const
         {
             return vec[index] != other;
         }
@@ -186,8 +186,8 @@ const recipe *select_crafting_recipe( int &batch_size )
 
     const int iInfoWidth = width - FULL_SCREEN_WIDTH - 3;
     std::string item_info_text;
-    auto tab = circular_iterator<std::string>( craft_cat_list );
-    auto subtab = circular_iterator<std::string>( craft_subcat_list[tab] );
+    auto tab = list_circularizer<std::string>( craft_cat_list );
+    auto subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
     std::vector<const recipe *> current;
     std::vector<bool> available;
     std::vector<std::string> component_print_buffer;
@@ -456,14 +456,14 @@ const recipe *select_crafting_recipe( int &batch_size )
             redraw = true;
         } else if (action == "PREV_TAB") {
             tab--;
-            subtab = circular_iterator<std::string>( craft_subcat_list[tab] );//default ALL
+            subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
             redraw = true;
         } else if (action == "RIGHT") {
             subtab++;
             redraw = true;
         } else if (action == "NEXT_TAB") {
             tab++;
-            subtab = circular_iterator<std::string>( craft_subcat_list[tab] );//default ALL
+            subtab = list_circularizer<std::string>( craft_subcat_list[tab] );//default ALL
             redraw = true;
         } else if (action == "DOWN") {
             line++;
