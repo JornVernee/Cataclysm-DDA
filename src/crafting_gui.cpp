@@ -135,7 +135,7 @@ class crafting_gui {
         void draw_tabs();
         void draw_legend();
         void draw_border();
-        void draw_recipe_line( int y, int i );
+        void draw_recipe_line( std::string &name, int y, bool available, bool selected, int multiplier );
         void draw_recipe_list();
         void draw_recipe_result( const recipe *rec, bool available );
         void draw_recipe_info( const recipe* rec, bool available, int batch_size );
@@ -269,18 +269,17 @@ void crafting_gui::draw_border()
     mvwputch(w_data, dataHeight - 1, width - 1, BORDER_COLOR, LINE_XOOX); // |_
 }
 
-void crafting_gui::draw_recipe_line( int y, int i )
+void crafting_gui::draw_recipe_line( std::string &name, int y, bool available, bool selected, int multiplier )
 {
-    std::string name = item::nname(current[i]->result);
-    if (batch) {
-        name = string_format(_("%2dx %s"), i + 1, name.c_str());
+    if (multiplier != 0) {
+        name = string_format("%2dx %s", multiplier, name.c_str());
     }
     mvwprintz(w_data, y, 2, c_dkgray, ""); // Clear the line
-    if (i == line) {
-        mvwprintz(w_data, y, 2, (available[i] ? h_white : h_dkgray),
+    if (selected) {
+        mvwprintz(w_data, y, 2, (available ? h_white : h_dkgray),
                   utf8_truncate(name, 28).c_str());
     } else {
-        mvwprintz(w_data, y, 2, (available[i] ? c_white : c_dkgray),
+        mvwprintz(w_data, y, 2, (available ? c_white : c_dkgray),
                   utf8_truncate(name, 28).c_str());
     }
 }
@@ -291,20 +290,27 @@ void crafting_gui::draw_recipe_list()
     if (recmax > dataLines) {
         if (line <= recmin + dataHalfLines) {
             for (int i = recmin; i < recmin + dataLines; ++i) {
-                draw_recipe_line(i - recmin, i);
+                std::string name = item::nname(current[i]->result);
+                draw_recipe_line(name, i - recmin,
+                                 available[i], i == line, batch ? i + 1 : 0);
             }
         } else if (line >= recmax - dataHalfLines) {
             for (int i = recmax - dataLines; i < recmax; ++i) {
-                draw_recipe_line(dataLines + i - recmax, i);
+                std::string name = item::nname(current[i]->result);
+                draw_recipe_line(name, dataLines + i - recmax,
+                                 available[i], i == line, batch ? i + 1 : 0);
             }
         } else {
             for (int i = line - dataHalfLines; i < line - dataHalfLines + dataLines; ++i) {
-                draw_recipe_line(dataHalfLines + i - line, i);
+                std::string name = item::nname(current[i]->result);
+                draw_recipe_line(name, dataHalfLines + i - line,
+                                 available[i], i == line, batch ? i + 1 : 0);
             }
         }
     } else {
         for (size_t i = 0; i < current.size() && i < (size_t)dataHeight + 1; ++i) {
-            draw_recipe_line(i, i);
+            std::string name = item::nname(current[i]->result);
+            draw_recipe_line(name, i, available[i], (int)i == line, batch ? i + 1 : 0);
         }
     }
 
