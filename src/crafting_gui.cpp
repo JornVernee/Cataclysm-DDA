@@ -49,7 +49,7 @@ class circular_iterator {
             return vec[index];
         }
 
-        bool operator!=( const std::string &other ) const
+        bool operator!=( const T &other ) const
         {
             return vec[index] != other;
         }
