@@ -330,7 +330,6 @@ void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
 
 void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batch_size )
 {
-    static std::vector<std::string> component_print_buffer;
     static int previous_item_line = -1;
     static std::string previous_tab = "";
     static std::string previous_subtab = "";
@@ -339,7 +338,7 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
         nc_color col = (available ? c_white : c_ltgray);
         int ypos = 0;
 
-        component_print_buffer = rec->requirements.get_folded_components_list(
+        std::vector<std::string> component_print_buffer = rec->requirements.get_folded_components_list(
             FULL_SCREEN_WIDTH - 30 - 1, col, crafting_inv, batch_size );
         if( !g->u.knows_recipe( rec ) ) {
             component_print_buffer.push_back(_("Recipe not memorized yet"));
