@@ -1,4 +1,4 @@
-#include "crafting_GUI.h"
+#include "crafting_gui.h"
 
 #include "crafting.h"
 #include "recipe_dictionary.h"
@@ -42,6 +42,29 @@ static std::string first_craft_subcat(const std::string cat);
 static std::string last_craft_subcat(const std::string cat);
 static std::string next_craft_subcat(const std::string cat, const std::string subcat);
 static std::string prev_craft_subcat(const std::string cat, const std::string subcat);
+
+void load_recipe_category(JsonObject &jsobj)
+{
+    JsonArray subcats;
+    std::string category = jsobj.get_string("id");
+    // Don't store noncraft as a category.
+    // We're storing the subcategory so we can look it up in load_recipes
+    // for the fallback subcategory.
+    if( category != "CC_NONCRAFT" ) {
+        craft_cat_list.push_back( category );
+    }
+    craft_subcat_list[category] = std::vector<std::string>();
+    subcats = jsobj.get_array("recipe_subcategories");
+    while (subcats.has_more()) {
+        craft_subcat_list[category].push_back( subcats.next_string() );
+    }
+}
+
+void reset_recipe_categories()
+{
+    craft_cat_list.clear();
+    craft_subcat_list.clear();
+}
 
 static const tab_tuple tabs[] = {
     tab_tuple(_("WEAPONS"), "CC_WEAPON",
