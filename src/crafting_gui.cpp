@@ -274,7 +274,7 @@ void crafting_gui::draw_recipe_line( std::string &name, int y, bool available, b
     if (multiplier != 0) {
         name = string_format("%2dx %s", multiplier, name.c_str());
     }
-    mvwprintz(w_data, y, 2, c_dkgray, ""); // Clear the line
+
     if (selected) {
         mvwprintz(w_data, y, 2, (available ? h_white : h_dkgray),
                   utf8_truncate(name, 28).c_str());
