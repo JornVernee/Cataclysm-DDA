@@ -140,6 +140,7 @@ class crafting_gui {
         void draw_border();
         void draw_recipe_line( int y, int i );
         void draw_recipe_list();
+        void draw_recipe_result( const recipe *rec, bool available );
         void draw_recipe_info( const recipe* rec, bool available, int batch_size );
         void draw_main_window();
         void handle_input( int &batch_size );
@@ -310,6 +311,21 @@ void crafting_gui::draw_recipe_list()
     }
 }
 
+void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
+{
+    nc_color col = (available ? c_white : c_ltgray);
+
+    if ( lastid != rec->id ) {
+        lastid = rec->id;
+        tmp = rec->create_result();
+        item_info_text = tmp.info( true );
+    }
+    mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
+              utf8_truncate(tmp.type_name( 1 ), iInfoWidth).c_str());
+
+    fold_and_print( w_data, 1, FULL_SCREEN_WIDTH + 1, iInfoWidth, col, item_info_text );
+}
+
 void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batch_size )
 {
     if (!current.empty()) {
@@ -392,15 +408,7 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
         }
 
         if ( isWide ) {
-            if ( lastid != rec->id ) {
-                lastid = rec->id;
-                tmp = rec->create_result();
-                item_info_text = tmp.info( true );
-            }
-            mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
-                      utf8_truncate(tmp.type_name( 1 ), iInfoWidth).c_str());
-
-            fold_and_print( w_data, 1, FULL_SCREEN_WIDTH + 1, iInfoWidth, col, item_info_text );
+            draw_recipe_result( rec, available );
         }
 
     }
