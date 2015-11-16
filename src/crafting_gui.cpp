@@ -91,10 +91,6 @@ std::string get_subcat_name( const std::string &cat, std::string prefixed_name )
 }
 
 void translate_all() {
-    if( !translations.empty() ) {
-        return; // already translated
-    }
-
     for( const auto &cat : craft_cat_list ) {
         translations[cat] =  _( get_cat_name( cat ).c_str() );
 
@@ -129,7 +125,9 @@ void reset_recipe_categories()
 
 const recipe *select_crafting_recipe( int &batch_size )
 {
-    translate_all();
+    if( translations.empty() ) {
+        translate_all();
+    }
 
     const int headHeight = 3;
     const int subHeadHeight = 2;
