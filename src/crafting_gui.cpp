@@ -210,6 +210,7 @@ class crafting_gui {
         void draw_legend();
         void draw_border();
         void draw_recipe_line( int y, int i );
+        void draw_recipe_list();
         void draw_recipe_info();
         void handle_input( int &batch_size );
 };
@@ -292,7 +293,7 @@ void crafting_gui::draw_recipe_line( int y, int i )
     }
 }
 
-void crafting_gui::draw_recipe_info()
+void crafting_gui::draw_recipe_list()
 {
     int recmin = 0, recmax = current.size();
     if (recmax > dataLines) {
@@ -314,6 +315,12 @@ void crafting_gui::draw_recipe_info()
             draw_recipe_line(i, i);
         }
     }
+}
+
+void crafting_gui::draw_recipe_info()
+{
+    draw_recipe_list();
+
     if (!current.empty()) {
         nc_color col = (available[line] ? c_white : c_ltgray);
         ypos = 0;
@@ -407,7 +414,7 @@ void crafting_gui::draw_recipe_info()
 
     }
 
-    draw_scrollbar(w_data, line, dataLines, recmax, 0);
+    draw_scrollbar(w_data, line, dataLines, current.size(), 0);
     wrefresh(w_data);
 }
 
