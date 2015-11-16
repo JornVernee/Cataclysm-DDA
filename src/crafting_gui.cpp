@@ -142,7 +142,6 @@ class crafting_gui {
         void draw_recipe_list();
         void draw_recipe_result( const recipe *rec, bool available );
         void draw_recipe_info( const recipe* rec, bool available, int batch_size );
-        void draw_main_window();
         void handle_input( int &batch_size );
 };
 
@@ -309,6 +308,8 @@ void crafting_gui::draw_recipe_list()
             draw_recipe_line(i, i);
         }
     }
+
+    draw_scrollbar(w_data, line, dataLines, current.size(), 0);
 }
 
 void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
@@ -412,15 +413,6 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
         }
 
     }
-}
-
-void crafting_gui::draw_main_window()
-{
-    draw_recipe_list();
-    draw_recipe_info( current[line], available[line], batch ? line + 1 : 1);
-    draw_scrollbar(w_data, line, dataLines, current.size(), 0);
-
-    wrefresh(w_data);
 }
 
 void crafting_gui::handle_input( int &batch_size )
@@ -529,7 +521,10 @@ const recipe *crafting_gui::query( int &batch_size )
 
         draw_legend();
         draw_border();
-        draw_main_window();
+        draw_recipe_list();
+        draw_recipe_info( current[line], available[line], batch ? line + 1 : 1);
+
+        wrefresh(w_data);
 
         handle_input( batch_size );
     } while (!done);
