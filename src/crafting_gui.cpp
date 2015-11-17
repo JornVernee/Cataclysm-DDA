@@ -123,7 +123,7 @@ class crafting_gui {
         list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
 
         int line = 0;
-        int saved_line = 0; // line in batch mode
+        int saved_line = 0; // for when returning from batch list mode
         std::vector<const recipe *> current;
         std::vector<bool> available;
 
