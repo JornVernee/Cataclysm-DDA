@@ -221,16 +221,6 @@ void crafting_gui::draw_tabs()
     TAB_MODE m = (batch) ? BATCH : (filterstring == "") ? NORMAL : FILTERED;
     draw_recipe_tabs(w_head, tab, m);
     draw_recipe_subtabs(w_subhead, tab, subtab, m);
-
-    // Reset recipe list
-    current.clear();
-    available.clear();
-    if (batch) {
-        batch_recipes(crafting_inv, current, available, chosen);
-    } else {
-        // Set current to all recipes in the current tab; available are possible to make
-        pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
-    }
 }
 
 void crafting_gui::draw_legend()
@@ -541,6 +531,16 @@ const recipe *crafting_gui::query( int &batch_size )
             }
 
             draw_tabs();
+
+            // Reset recipe list
+            current.clear();
+            available.clear();
+            if (batch) {
+                batch_recipes(crafting_inv, current, available, chosen);
+            } else {
+                // Set current to all recipes in the current tab; available are possible to make
+                pick_recipes(crafting_inv, current, available, tab, subtab, filterstring);
+            }
         }
 
         // Clear the screen of recipe data, and draw it anew
