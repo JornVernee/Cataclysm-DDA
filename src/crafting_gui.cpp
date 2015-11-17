@@ -88,7 +88,7 @@ class crafting_gui {
         const recipe *query( int &batch_size );
 
     private:
-        bool isWide = TERMX - FULL_SCREEN_WIDTH > 15; // 15 is enough space to print recipe result info.
+        bool isWide = TERMX - FULL_SCREEN_WIDTH > 15; // 15 is enough space to print recipe result info too.
         const int width = isWide ? std::min(FULL_SCREEN_WIDTH * 2, TERMX) : FULL_SCREEN_WIDTH;
         const int wStart = ( TERMX - width ) / 2;
 
@@ -107,14 +107,13 @@ class crafting_gui {
         const int recipe_width = width - list_width - 5; // 2 borders, 3 spacers
         const int rStart = lStart + list_width + 1; // 1 spacer
 
+        // if we are wide, recipe component requirements and recipe result info both get half of remaining space
         const int compWidth = isWide ? (recipe_width / 2) : width; // cStart = rStart
 
-        const int iInfoWidth = (recipe_width / 2) - 1; // 1 extra spacer
+        const int iInfoWidth = (recipe_width / 2) - 1; // 1 spacer
         const int iStart = rStart + compWidth + 1; // 1 spacer
 
         const int componentPrintHeight = dataHeight - tailHeight - 1;
-
-
 
         WINDOW *w_head; // Used by draw_recipe_tabs
         WINDOW *w_subhead; // Used by draw_recipe_subtabs
@@ -124,7 +123,7 @@ class crafting_gui {
         list_circularizer<std::string> subtab = list_circularizer<std::string>( craft_subcat_list[tab] );
 
         int line = 0;
-        int batch_line = 0; // line in batch mode
+        int saved_line = 0; // line in batch mode
         std::vector<const recipe *> current;
         std::vector<bool> available;
 
@@ -519,10 +518,10 @@ void crafting_gui::handle_input( int &batch_size )
         }
         batch = !batch;
         if (batch) {
-            batch_line = line;
-            chosen = current[batch_line];
+            saved_line = line;
+            chosen = current[line];
         } else {
-            line = batch_line;
+            line = saved_line;
             keepline = true;
         }
         redraw = true;
