@@ -218,16 +218,6 @@ void reset_recipe_categories()
 
 void crafting_gui::draw_tabs()
 {
-    if ( ! keepline ) {
-        line = 0;
-    } else {
-        keepline = false;
-    }
-
-    if( display_mode > 2 ){
-        display_mode = 2;
-    }
-
     TAB_MODE m = (batch) ? BATCH : (filterstring == "") ? NORMAL : FILTERED;
     draw_recipe_tabs(w_head, tab, m);
     draw_recipe_subtabs(w_subhead, tab, subtab, m);
@@ -539,6 +529,17 @@ const recipe *crafting_gui::query( int &batch_size )
         if (redraw) {
             // When we switch tabs, redraw the header
             redraw = false;
+
+            if ( ! keepline ) {
+                line = 0;
+            } else {
+                keepline = false;
+            }
+
+            if( display_mode > 2 ){
+                display_mode = 2;
+            }
+
             draw_tabs();
         }
 
