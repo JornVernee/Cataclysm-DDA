@@ -88,23 +88,33 @@ class crafting_gui {
         const recipe *query( int &batch_size );
 
     private:
-        const int headHeight = 3;
-        const int subHeadHeight = 2;
-        const int freeWidth = TERMX - FULL_SCREEN_WIDTH;
-        bool isWide = ( TERMX > FULL_SCREEN_WIDTH && freeWidth > 15 );
-
-        const int width = isWide ? ( freeWidth > FULL_SCREEN_WIDTH ? FULL_SCREEN_WIDTH * 2 : TERMX ) :
-                          FULL_SCREEN_WIDTH;
+        bool isWide = TERMX - FULL_SCREEN_WIDTH > 15; // 15 is enough space to print recipe result info.
+        const int width = isWide ? std::min(FULL_SCREEN_WIDTH * 2, TERMX) : FULL_SCREEN_WIDTH;
         const int wStart = ( TERMX - width ) / 2;
-        const int tailHeight = isWide ? 3 : 4;
-        const int dataLines = TERMY - (headHeight + subHeadHeight) - tailHeight;
-        const int dataHalfLines = dataLines / 2;
-        const int dataHeight = TERMY - (headHeight + subHeadHeight);
 
-        const int iInfoWidth = width - FULL_SCREEN_WIDTH - 3;
+        const int headHeight = 3; //border, text, border
+        const int subHeadHeight = 2; //text, blank line
+
+        // the legend is printed on 2 lines instead of 1 if we are not wide.
+        const int tailHeight = isWide ? 3 : 4; // border, white space, text (, text)
+        const int dataHeight = TERMY - (headHeight + subHeadHeight);
+        const int dataLines = dataHeight - tailHeight;
+        const int dataHalfLines = dataLines / 2;
+
+        const int list_width = 30; // width of recipe list
+        const int lStart = 2; // border + spacer
+
+        const int recipe_width = width - list_width - 5; // 2 borders, 3 spacers
+        const int rStart = lStart + list_width + 1; // 1 spacer
+
+        const int compWidth = isWide ? (recipe_width / 2) : width; // cStart = rStart
+
+        const int iInfoWidth = (recipe_width / 2) - 1; // 1 extra spacer
+        const int iStart = rStart + compWidth + 1; // 1 spacer
+
         const int componentPrintHeight = dataHeight - tailHeight - 1;
 
-        const int list_width = 28;
+
 
         WINDOW *w_head; // Used by draw_recipe_tabs
         WINDOW *w_subhead; // Used by draw_recipe_subtabs
@@ -332,10 +342,10 @@ void crafting_gui::draw_recipe_result( const recipe *rec, bool available )
         tmp = rec->create_result();
         item_info_text = tmp.info( true );
     }
-    mvwprintz(w_data, 0, FULL_SCREEN_WIDTH + 1, col, "%s",
+    mvwprintz(w_data, 0, iStart, col, "%s",
               utf8_truncate(tmp.type_name( 1 ), iInfoWidth).c_str());
 
-    fold_and_print( w_data, 1, FULL_SCREEN_WIDTH + 1, iInfoWidth, col, item_info_text );
+    fold_and_print( w_data, 1, iStart, iInfoWidth, col, item_info_text );
 }
 
 void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batch_size )
@@ -348,11 +358,9 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
         nc_color col = (available ? c_white : c_ltgray);
         int ypos = 0;
 
-        int list_end_x = list_width + 2;
-
         // width = full screen - (recipe list width + 2 lines of margin) - 1 line of border.
         std::vector<std::string> component_print_buffer = rec->requirements.get_folded_components_list(
-            FULL_SCREEN_WIDTH - list_end_x - 1, col, crafting_inv, batch_size );
+            rStart, col, crafting_inv, batch_size );
         if( !g->u.knows_recipe( rec ) ) {
             component_print_buffer.push_back(_("Recipe not memorized yet"));
         }
@@ -378,27 +386,27 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
         previous_item_line = line;
 
         if(display_mode == 0) {
-            mvwprintz(w_data, ypos++, list_end_x, col, _("Skills used: %s"),
+            mvwprintz(w_data, ypos++, rStart, col, _("Skills used: %s"),
                       (!rec->skill_used ? _("N/A") :
                        rec->skill_used.obj().name().c_str()));
 
-            mvwprintz(w_data, ypos++, list_end_x, col, _("Required skills: %s"),
+            mvwprintz(w_data, ypos++, rStart, col, _("Required skills: %s"),
                       (rec->required_skills_string().c_str()));
-            mvwprintz(w_data, ypos++, list_end_x, col, _("Difficulty: %d"), rec->difficulty);
+            mvwprintz(w_data, ypos++, rStart, col, _("Difficulty: %d"), rec->difficulty);
             if( !rec->skill_used ) {
-                mvwprintz(w_data, ypos++, list_end_x, col, _("Your skill level: N/A"));
+                mvwprintz(w_data, ypos++, rStart, col, _("Your skill level: N/A"));
             } else {
-                mvwprintz(w_data, ypos++, list_end_x, col, _("Your skill level: %d"),
+                mvwprintz(w_data, ypos++, rStart, col, _("Your skill level: %d"),
                           // Macs don't seem to like passing this as a class, so force it to int
                           (int)g->u.skillLevel(rec->skill_used));
             }
-            ypos += rec->print_time( w_data, ypos, list_end_x, FULL_SCREEN_WIDTH - list_end_x - 1, col,
+            ypos += rec->print_time( w_data, ypos, rStart, compWidth, col,
                                                batch_size );
-            ypos += rec->print_items(w_data, ypos, list_end_x, col, batch_size);
+            ypos += rec->print_items(w_data, ypos, rStart, col, batch_size);
         }
         if(display_mode == 0 || display_mode == 1) {
             ypos += rec->requirements.print_tools(
-                w_data, ypos, list_end_x, FULL_SCREEN_WIDTH - list_end_x - 1, col,
+                w_data, ypos, rStart, compWidth, col,
                 crafting_inv, batch_size );
         }
 
@@ -417,12 +425,12 @@ void crafting_gui::draw_recipe_info( const recipe *rec, bool available, int batc
             }
 
             components_printed++;
-            print_colored_text(w_data, ypos++, list_end_x, stored_color, col, component_print_buffer[i]);
+            print_colored_text(w_data, ypos++, rStart, stored_color, col, component_print_buffer[i]);
         }
 
         if( ypos >= componentPrintHeight &&
             component_print_buffer.size() > static_cast<size_t>( components_printed ) ) {
-            mvwprintz(w_data, ypos++, list_end_x, col, _("v (more)"));
+            mvwprintz(w_data, ypos++, rStart, col, _("v (more)"));
             rotated_color = stored_color;
         }
 
