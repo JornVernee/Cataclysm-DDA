@@ -18,6 +18,7 @@
 #include "ui.h"
 #include "player.h"
 #include "ret_val.h"
+#include "map_iterator.h"
 
 #include <algorithm>
 #include <istream>
@@ -80,13 +81,13 @@ bool item_has_uses_recursive( const item &it )
     return false;
 }
 
-item_action_map item_action_generator::map_actions_to_items( player &p ) const
+item_action_map item_action_generator::map_actions_to_items( map& m, player &p ) const
 {
-    return map_actions_to_items( p, std::vector<item *>() );
+    return map_actions_to_items( m, p, std::vector< item_location >() );
 }
 
-item_action_map item_action_generator::map_actions_to_items( player &p,
-        const std::vector<item *> &pseudos ) const
+item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
+        const std::vector< item_location > &pseudos ) const
 {
     std::set< item_action_id > unmapped_actions;
     for( auto &ia_ptr : item_actions ) { // Get ids of wanted actions
@@ -97,20 +98,28 @@ item_action_map item_action_generator::map_actions_to_items( player &p,
     std::vector< item * > items = p.inv_dump();    
     items.reserve( items.size() + pseudos.size() );
     items.insert( items.end(), pseudos.begin(), pseudos.end() );
-    inventory map_inv;
-    map_inv.form_from_map( p.pos(), PICKUP_RANGE );
-    map_inv.dump( items );
+
+    std::vector< item_location > items_at_location;
+    items_at_location.resize( items.size() );
+    std::transform( items.begin(), items.end(), items_at_location.begin(), [&p]( item *it ) {
+        return item_location{ p, it };
+    });
+    for( const tripoint &p : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
+        for( const auto &i : m.i_at( p ) ) {
+            items_at_location.emplace_back( p, i );
+        }
+    }
 
     std::unordered_set< item_action_id > to_remove;
-    for( item *i : items ) {
-        if( !item_has_uses_recursive( *i ) ) {
+    for( item_location &ial : items_at_location ) {
+        if( !item_has_uses_recursive( *ial.get_item() ) ) {
             continue;
         }
 
         for( const item_action_id &use : unmapped_actions ) {
             // Actually used item can be different from the "outside item"
             // For example, sheathed knife
-            item *actual_item = i->get_usable_item( use );
+            item *actual_item = ial.get_item()->get_usable_item( use );
             if( actual_item == nullptr ) {
                 continue;
             }
@@ -140,7 +149,7 @@ item_action_map item_action_generator::map_actions_to_items( player &p,
             }
 
             if( better ) {
-                candidates[use] = i;
+                candidates[use] = std::move( ial );
                 if( actual_item->ammo_required() == 0 ) {
                     to_remove.insert( use );
                 }
@@ -213,13 +222,13 @@ void game::item_action_menu()
     const action_map &item_actions = gen.get_item_action_map();
 
     // A bit of a hack for now. If more pseudos get implemented, this should be un-hacked
-    std::vector<item *> pseudos;
+    std::vector< item_location > pseudos;
     item toolset( "toolset", calendar::turn );
     if( u.has_active_bionic( bionic_id( "bio_tools" ) ) ) {
-        pseudos.push_back( &toolset );
+        pseudos.emplace_back( u, &toolset );
     }
 
-    item_action_map iactions = gen.map_actions_to_items( u, pseudos );
+    item_action_map iactions = gen.map_actions_to_items( m, u, pseudos );
     if( iactions.empty() ) {
         popup( _( "You don't have any items with registered uses" ) );
     }
@@ -252,15 +261,16 @@ void game::item_action_menu()
     };
     // Add mapped actions to the menu vector.
     std::transform( iactions.begin(), iactions.end(), std::back_inserter( menu_items ),
-    []( const std::pair<item_action_id, item *> &elem ) {
+    []( const std::pair<item_action_id, item_location> &elem ) {
         std::stringstream ss;
-        ss << elem.second->display_name();
-        if( elem.second->ammo_required() ) {
-            ss << " (" << elem.second->ammo_required() << '/'
-               << elem.second->ammo_remaining() << ')';
+        const item *i = elem.second.get_item();
+        ss << i->display_name();
+        if( i->ammo_required() ) {
+            ss << " (" << i->ammo_required() << '/'
+               << i->ammo_remaining() << ')';
         }
 
-        const auto method = elem.second->get_use( elem.first );
+        const auto method = i->get_use( elem.first );
         return std::make_tuple( method->get_type(), method->get_name(), ss.str() );
     } );
     // Sort mapped actions.
@@ -307,9 +317,9 @@ void game::item_action_menu()
     wrefresh( w_terrain );
 
     const item_action_id action = std::get<0>( menu_items[kmenu.ret] );
-    item *it = iactions[action];
+    item_location &it = iactions[action];
 
-    u.invoke_item( it, action );
+    u.invoke_item( it.get_item(), action, it.position() );
 
     u.inv.restack( u );
     u.inv.unsort();
