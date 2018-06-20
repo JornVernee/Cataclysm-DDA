@@ -94,9 +94,12 @@ item_action_map item_action_generator::map_actions_to_items( player &p,
     }
 
     item_action_map candidates;
-    std::vector< item * > items = p.inv_dump();
+    std::vector< item * > items = p.inv_dump();    
     items.reserve( items.size() + pseudos.size() );
     items.insert( items.end(), pseudos.begin(), pseudos.end() );
+    inventory map_inv;
+    map_inv.form_from_map( p.pos(), PICKUP_RANGE );
+    map_inv.dump( items );
 
     std::unordered_set< item_action_id > to_remove;
     for( item *i : items ) {
