@@ -20,6 +20,10 @@
 #include "ret_val.h"
 #include "map_iterator.h"
 #include "map_selector.h"
+#include "vehicle.h"
+#include "vpart_position.h"
+#include "vpart_reference.h"
+#include "vehicle_selector.h"
 
 #include <algorithm>
 #include <istream>
@@ -108,6 +112,19 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
     for( const tripoint &point : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
         for( item &i : m.i_at( point ) ) {
             items_at_location.emplace_back( point , &i );
+        }
+
+        const optional_vpart_position vp = m.veh_at( point );
+        if( vp ) {
+            vehicle *const veh = &vp->vehicle();
+            const cata::optional<vpart_reference> cargo = vp.part_with_feature( "CARGO" );
+            if( cargo ) {
+                int part_index = cargo->part_index();
+                auto items = veh->get_items( part_index );
+                for( item& i : items ) {
+                    items_at_location.emplace_back( vehicle_cursor{ *veh, part_index }, &i );
+                }
+            }
         }
     }
 
@@ -320,7 +337,12 @@ void game::item_action_menu()
     const item_action_id action = std::get<0>( menu_items[kmenu.ret] );
     item_location &it = iactions[action];
 
-    u.invoke_item( it.get_item(), action, it.position() );
+    if( it.get_item() == &toolset ) { // FIXME can't generically invoke pseudo items
+        u.invoke_item( it.get_item(), action );
+    } else {
+        int inv = it.obtain( u );
+        u.invoke_item( &u.i_at( inv ), action, it.position() );
+    }
 
     u.inv.restack( u );
     u.inv.unsort();
