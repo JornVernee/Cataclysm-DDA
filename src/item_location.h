@@ -86,6 +86,8 @@ class item_location
         item *get_item();
         const item *get_item() const;
 
+        item_location with_item( item *other ) const; // change the item pointed to, but in the same location
+
         /**
          * Clones this instance
          * @warning usage should be restricted to implementing custom copy-constructors

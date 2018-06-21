@@ -42,7 +42,7 @@ class item_action_generator
         // Prefers items with smaller charge_per_use
         // "pseudos" are extra items not in player's inventory that should still be mapped
         item_action_map map_actions_to_items( map &m, player &p ) const;
-        item_action_map map_actions_to_items( map &m, player &p, const std::vector< item_location > &pseudos ) const;
+        item_action_map map_actions_to_items( map &m, player &p, const std::vector< item * > &pseudos ) const;
 
         // Returns (translated) name of action
         std::string get_action_name( const item_action_id &id ) const;

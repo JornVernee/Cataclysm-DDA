@@ -19,6 +19,7 @@
 #include "player.h"
 #include "ret_val.h"
 #include "map_iterator.h"
+#include "map_selector.h"
 
 #include <algorithm>
 #include <istream>
@@ -83,11 +84,11 @@ bool item_has_uses_recursive( const item &it )
 
 item_action_map item_action_generator::map_actions_to_items( map& m, player &p ) const
 {
-    return map_actions_to_items( m, p, std::vector< item_location >() );
+    return map_actions_to_items( m, p, std::vector< item * >() );
 }
 
 item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
-        const std::vector< item_location > &pseudos ) const
+        const std::vector< item * > &pseudos ) const
 {
     std::set< item_action_id > unmapped_actions;
     for( auto &ia_ptr : item_actions ) { // Get ids of wanted actions
@@ -95,7 +96,7 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
     }
 
     item_action_map candidates;
-    std::vector< item * > items = p.inv_dump();    
+    std::vector< item * > items = p.inv_dump();
     items.reserve( items.size() + pseudos.size() );
     items.insert( items.end(), pseudos.begin(), pseudos.end() );
 
@@ -105,8 +106,8 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
         return item_location{ p, it };
     });
     for( const tripoint &p : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
-        for( const auto &i : m.i_at( p ) ) {
-            items_at_location.emplace_back( p, i );
+        for( item &i : m.i_at( p ) ) {
+            items_at_location.emplace_back( p , &i );
         }
     }
 
@@ -119,7 +120,7 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
         for( const item_action_id &use : unmapped_actions ) {
             // Actually used item can be different from the "outside item"
             // For example, sheathed knife
-            item *actual_item = ial.get_item()->get_usable_item( use );
+            item *actual_item = ial->get_usable_item( use );
             if( actual_item == nullptr ) {
                 continue;
             }
@@ -149,7 +150,7 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
             }
 
             if( better ) {
-                candidates[use] = std::move( ial );
+                candidates[use] = ial.with_item( actual_item );
                 if( actual_item->ammo_required() == 0 ) {
                     to_remove.insert( use );
                 }
@@ -222,10 +223,10 @@ void game::item_action_menu()
     const action_map &item_actions = gen.get_item_action_map();
 
     // A bit of a hack for now. If more pseudos get implemented, this should be un-hacked
-    std::vector< item_location > pseudos;
+    std::vector< item * > pseudos;
     item toolset( "toolset", calendar::turn );
     if( u.has_active_bionic( bionic_id( "bio_tools" ) ) ) {
-        pseudos.emplace_back( u, &toolset );
+        pseudos.push_back( &toolset );
     }
 
     item_action_map iactions = gen.map_actions_to_items( m, u, pseudos );
@@ -261,7 +262,7 @@ void game::item_action_menu()
     };
     // Add mapped actions to the menu vector.
     std::transform( iactions.begin(), iactions.end(), std::back_inserter( menu_items ),
-    []( const std::pair<item_action_id, item_location> &elem ) {
+    []( const std::pair<const item_action_id, item_location> &elem ) {
         std::stringstream ss;
         const item *i = elem.second.get_item();
         ss << i->display_name();
