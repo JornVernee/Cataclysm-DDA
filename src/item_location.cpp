@@ -94,11 +94,6 @@ class item_location::impl
             return nullptr;
         }
 
-        virtual item_location with_item( item *other ) const
-        {
-            return item_location{}; // nowhere
-        }
-
         item *target() const {
             if( idx >= 0 ) {
                 what = unpack( idx );
@@ -197,11 +192,6 @@ class item_location::impl::item_on_map : public item_location::impl
 
         void remove_item() override {
             cur.remove_item( *what );
-        }
-
-        item_location with_item( item *other ) const override
-        {
-            return item_location{ cur, other };
         }
 };
 
@@ -326,11 +316,6 @@ class item_location::impl::item_on_person : public item_location::impl
         void remove_item() override {
             who.remove_item( *what );
         }
-
-        item_location with_item( item *other ) const override
-        {
-            return item_location{ who, other };
-        }
 };
 
 class item_location::impl::item_on_vehicle : public item_location::impl
@@ -426,11 +411,6 @@ class item_location::impl::item_on_vehicle : public item_location::impl
             } else {
                 cur.remove_item( *target() ); // item within CARGO
             }
-        }
-
-        item_location with_item( item *other ) const override
-        {
-            return item_location{ cur, other };
         }
 };
 
@@ -566,11 +546,6 @@ item *item_location::get_item()
 const item *item_location::get_item() const
 {
     return ptr->target();
-}
-
-item_location item_location::with_item( item *other ) const
-{
-    return ptr->with_item( other );
 }
 
 item_location item_location::clone() const

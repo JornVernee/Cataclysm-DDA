@@ -105,9 +105,9 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
     std::transform( items.begin(), items.end(), items_at_location.begin(), [&p]( item *it ) {
         return item_location{ p, it };
     });
-    for( const tripoint &p : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
-        for( item &i : m.i_at( p ) ) {
-            items_at_location.emplace_back( p , &i );
+    for( const tripoint &point : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
+        for( item &i : m.i_at( point ) ) {
+            items_at_location.emplace_back( point , &i );
         }
     }
 
@@ -150,7 +150,7 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
             }
 
             if( better ) {
-                candidates[use] = ial.with_item( actual_item );
+                candidates[use] = ial.clone();
                 if( actual_item->ammo_required() == 0 ) {
                     to_remove.insert( use );
                 }
