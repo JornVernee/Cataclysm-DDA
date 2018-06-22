@@ -144,7 +144,7 @@ item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
 
             const use_function *func = actual_item->get_use( use );
             if( !( func && func->get_actor_ptr() &&
-                   func->get_actor_ptr()->can_use( p, *actual_item, false, p.pos() ).success() ) ) {
+                   func->get_actor_ptr()->can_use( p, *actual_item, false, ial.position() ).success() ) ) {
                 continue;
             }
             if( !actual_item->ammo_sufficient() ) {
@@ -242,6 +242,7 @@ void game::item_action_menu()
     // A bit of a hack for now. If more pseudos get implemented, this should be un-hacked
     std::vector< item * > pseudos;
     item toolset( "toolset", calendar::turn );
+    toolset.item_tags.insert( "PSEUDO" );
     if( u.has_active_bionic( bionic_id( "bio_tools" ) ) ) {
         pseudos.push_back( &toolset );
     }
@@ -337,8 +338,8 @@ void game::item_action_menu()
     const item_action_id action = std::get<0>( menu_items[kmenu.ret] );
     item_location &it = iactions[action];
 
-    if( it.get_item() == &toolset ) { // FIXME can't generically invoke pseudo items
-        u.invoke_item( it.get_item(), action );
+    if( it->item_tags.find( "PSEUDO" ) != it->item_tags.end() ) { // Can't obtain pseudo items.
+        u.invoke_item( it.get_item(), action ); // assumes player position
     } else {
         int inv = it.obtain( u );
         u.invoke_item( &u.i_at( inv ), action, it.position() );
