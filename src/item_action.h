@@ -2,7 +2,7 @@
 #ifndef ITEM_ACTION_H
 #define ITEM_ACTION_H
 
-#include "map.h"
+#include "item_location.h"
 
 #include <map>
 #include <string>
@@ -41,8 +41,7 @@ class item_action_generator
         // Assigns items to actions they perform on use
         // Prefers items with smaller charge_per_use
         // "pseudos" are extra items not in player's inventory that should still be mapped
-        item_action_map map_actions_to_items( map &m, player &p ) const;
-        item_action_map map_actions_to_items( map &m, player &p, const std::vector< item * > &pseudos ) const;
+        item_action_map map_actions_to_items( player &p, std::vector< item_location > &pseudos ) const;
 
         // Returns (translated) name of action
         std::string get_action_name( const item_action_id &id ) const;

@@ -18,12 +18,6 @@
 #include "ui.h"
 #include "player.h"
 #include "ret_val.h"
-#include "map_iterator.h"
-#include "map_selector.h"
-#include "vehicle.h"
-#include "vpart_position.h"
-#include "vpart_reference.h"
-#include "vehicle_selector.h"
 
 #include <algorithm>
 #include <istream>
@@ -86,50 +80,23 @@ bool item_has_uses_recursive( const item &it )
     return false;
 }
 
-item_action_map item_action_generator::map_actions_to_items( map& m, player &p ) const
-{
-    return map_actions_to_items( m, p, std::vector< item * >() );
-}
+item_action_map item_action_generator::map_actions_to_items( player &p,
+        std::vector< item_location > &pseudos ) const
+{    
+    std::vector< item_location > items = p.nearby(
+        []( const item *, const item * ){ return true; }, PICKUP_RANGE );
+    items.insert( items.end(),
+        std::make_move_iterator( pseudos.begin() ),
+        std::make_move_iterator( pseudos.end() ) );
 
-item_action_map item_action_generator::map_actions_to_items( map& m, player &p,
-        const std::vector< item * > &pseudos ) const
-{
     std::set< item_action_id > unmapped_actions;
     for( auto &ia_ptr : item_actions ) { // Get ids of wanted actions
         unmapped_actions.insert( ia_ptr.first );
     }
 
     item_action_map candidates;
-    std::vector< item * > items = p.inv_dump();
-    items.reserve( items.size() + pseudos.size() );
-    items.insert( items.end(), pseudos.begin(), pseudos.end() );
-
-    std::vector< item_location > items_at_location;
-    items_at_location.resize( items.size() );
-    std::transform( items.begin(), items.end(), items_at_location.begin(), [&p]( item *it ) {
-        return item_location{ p, it };
-    });
-    for( const tripoint &point : m.points_in_radius( p.pos(), PICKUP_RANGE ) ) {
-        for( item &i : m.i_at( point ) ) {
-            items_at_location.emplace_back( point , &i );
-        }
-
-        const optional_vpart_position vp = m.veh_at( point );
-        if( vp ) {
-            vehicle *const veh = &vp->vehicle();
-            const cata::optional<vpart_reference> cargo = vp.part_with_feature( "CARGO" );
-            if( cargo ) {
-                int part_index = cargo->part_index();
-                auto items = veh->get_items( part_index );
-                for( item& i : items ) {
-                    items_at_location.emplace_back( vehicle_cursor{ *veh, part_index }, &i );
-                }
-            }
-        }
-    }
-
     std::unordered_set< item_action_id > to_remove;
-    for( item_location &ial : items_at_location ) {
+    for( item_location &ial : items ) {
         if( !item_has_uses_recursive( *ial.get_item() ) ) {
             continue;
         }
@@ -240,14 +207,14 @@ void game::item_action_menu()
     const action_map &item_actions = gen.get_item_action_map();
 
     // A bit of a hack for now. If more pseudos get implemented, this should be un-hacked
-    std::vector< item * > pseudos;
+    std::vector< item_location > pseudos;
     item toolset( "toolset", calendar::turn );
     toolset.item_tags.insert( "PSEUDO" );
     if( u.has_active_bionic( bionic_id( "bio_tools" ) ) ) {
-        pseudos.push_back( &toolset );
+        pseudos.emplace_back( u, &toolset ); // FIXME spoofing as item on player
     }
 
-    item_action_map iactions = gen.map_actions_to_items( m, u, pseudos );
+    item_action_map iactions = gen.map_actions_to_items( u, pseudos );
     if( iactions.empty() ) {
         popup( _( "You don't have any items with registered uses" ) );
     }
@@ -339,10 +306,10 @@ void game::item_action_menu()
     item_location &it = iactions[action];
 
     if( it->item_tags.find( "PSEUDO" ) != it->item_tags.end() ) { // Can't obtain pseudo items.
-        u.invoke_item( it.get_item(), action ); // assumes player position
+        u.invoke_item( it.get_item(), action, it.position() );
     } else {
         int inv = it.obtain( u );
-        u.invoke_item( &u.i_at( inv ), action, it.position() );
+        u.invoke_item( &u.i_at( inv ), action ); // assumes player position
     }
 
     u.inv.restack( u );
