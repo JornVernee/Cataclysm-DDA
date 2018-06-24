@@ -18,6 +18,7 @@
 #include "ui.h"
 #include "player.h"
 #include "ret_val.h"
+#include "item_location.h"
 
 #include <algorithm>
 #include <istream>

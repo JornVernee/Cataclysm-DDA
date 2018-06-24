@@ -2,12 +2,11 @@
 #ifndef ITEM_ACTION_H
 #define ITEM_ACTION_H
 
-#include "item_location.h"
-
 #include <map>
 #include <string>
 #include <vector>
 
+class item_location;
 class item_action;
 class player;
 class item;
